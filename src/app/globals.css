@@ -1,0 +1,448 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: linear-gradient(135deg, #0d0d12 0%, #151520 50%, #0d0d12 100%);
+  min-height: 100vh;
+}
+
+/* Glow effects - warm orange glow inspired by "Her" */
+.glow-accent {
+  box-shadow: 0 0 30px rgba(255, 107, 53, 0.2);
+}
+
+.glow-accent-strong {
+  box-shadow: 0 0 60px rgba(255, 107, 53, 0.4);
+}
+
+/* Text gradient - "Her" inspired warm orange */
+.text-gradient {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8840 50%, #ff9f60 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Terminal effect */
+.terminal-cursor {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Smooth scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #12121a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2a2a3a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3a3a4a;
+}
+
+/* Focus rings - warm orange */
+*:focus-visible {
+  outline: 2px solid #ff6b35;
+  outline-offset: 2px;
+}
+
+/* Selection - warm orange tint */
+::selection {
+  background: rgba(255, 107, 53, 0.3);
+}
+
+/* OS-1 Landing Page Styles */
+:root {
+  --color-coral-600: #a84832;
+  --color-coral-500: #c1553d;
+  --color-coral-400: #d87660;
+  --color-coral-300: #e6ad86;
+
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --text-muted: rgba(255, 255, 255, 0.5);
+
+  --font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --letter-spacing: 0.05em;
+
+  --transition-fast: 300ms;
+  --transition-medium: 600ms;
+  --transition-slow: 1200ms;
+
+  /* OS1 Interface colors */
+  --bg-cream: #d9c9ad;
+  --bg-beige: #cfc0a6;
+  --coral-viewport: #c65a43;
+  --samantha-ring: rgba(255, 255, 255, 0.95);
+  --samantha-glow: rgba(255, 255, 255, 0.3);
+  --icon-stroke: rgba(160, 130, 110, 0.9);
+  --icon-stroke-hover: rgba(140, 100, 80, 1);
+  --icon-coral: #c65a43;
+  --icon-coral-light: rgba(198, 90, 67, 0.9);
+  --icon-warm: rgba(180, 145, 120, 0.85);
+  --icon-tan: rgba(165, 135, 115, 0.8);
+}
+
+/* OS-1 Landing Page specific styles - only apply when .os1-shell is present */
+/* Using :has() selector to scope OS-1 styles only to landing page */
+@supports selector(:has(*)) {
+  html:has(.os1-shell),
+  body:has(.os1-shell) {
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+  }
+
+  body:has(.os1-shell) {
+    font-family: var(--font-family);
+    font-weight: 300;
+    background: var(--bg-cream);
+    color: var(--text-primary);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #__next:has(.os1-shell) {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* OS1 Shell - Persistent Interface */
+.os1-shell {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    #d4bc9a 0%,
+    #d4bc9a 35%,
+    #e8dcc8 45%,
+    #efe5d5 50%,
+    #e8dcc8 55%,
+    #d4bc9a 65%,
+    #d4bc9a 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Shelf shadow - horizontal band beneath viewport */
+.os1-shell::before {
+  content: '';
+  position: absolute;
+  /* Position right at bottom edge of viewport (88vh / max 1100px) */
+  top: calc(50% + min(44vh, 550px));
+  /* Start after viewport left edge (viewport is 92vw / max 1800px) */
+  left: calc(50% - min(46vw, 900px) + 80px);
+  width: min(90vw, 1700px);
+  height: 75px;
+  /* Simple top-to-bottom shadow gradient - more pronounced */
+  background: linear-gradient(
+    to bottom,
+    rgba(90, 70, 50, 0.5) 0%,
+    rgba(100, 80, 60, 0.25) 40%,
+    transparent 100%
+  );
+  /* Fade left and right edges */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 8%, black 60%, transparent 95%);
+  mask-image: linear-gradient(to right, transparent 0%, black 8%, black 60%, transparent 95%);
+  filter: blur(8px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Secondary softer shadow layer */
+.os1-shell::after {
+  content: '';
+  position: absolute;
+  top: calc(50% + min(44vh, 550px) + 2px);
+  left: calc(50% - min(46vw, 900px) + 120px);
+  width: min(80vw, 1500px);
+  height: 55px;
+  background: linear-gradient(
+    to bottom,
+    rgba(80, 60, 40, 0.35) 0%,
+    rgba(90, 70, 50, 0.15) 50%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 55%, transparent 90%);
+  mask-image: linear-gradient(to right, transparent 0%, black 10%, black 55%, transparent 90%);
+  filter: blur(12px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Hide shelf shadows when viewport is hidden */
+.os1-shell.viewport-hidden::before,
+.os1-shell.viewport-hidden::after {
+  opacity: 0;
+  transition: opacity 0.8s ease-in-out;
+}
+
+.os1-viewport {
+  position: relative;
+  width: 92vw;
+  height: 88vh;
+  max-width: 1800px;
+  max-height: 1100px;
+  background: var(--coral-viewport);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.os1-viewport-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewport-ui-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.viewport-ui-layer > * {
+  pointer-events: auto;
+}
+
+/* Modality dock - positioned on cream background, bottom-left corner */
+.modality-dock {
+  position: absolute;
+  bottom: 30px;
+  left: 30px;
+  z-index: 100;
+}
+
+.modality-icon {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  cursor: pointer;
+  transition: transform var(--transition-fast) ease;
+}
+
+.modality-icon:hover {
+  transform: scale(1.1);
+}
+
+.modality-icon.active {
+  transform: scale(1.15);
+}
+
+/* Icons on cream background - warm tan/brown stroke style */
+.modality-icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--icon-tan);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: all var(--transition-fast) ease;
+  color: var(--icon-tan);
+}
+
+.modality-icon:hover svg {
+  stroke: var(--icon-stroke-hover);
+  color: var(--icon-stroke-hover);
+}
+
+.modality-icon.active svg {
+  stroke: var(--icon-coral);
+  stroke-width: 2;
+  color: var(--icon-coral);
+}
+
+/* First icon (bottom) - coral style like in the movie */
+.modality-icon[data-modality="computer"] svg {
+  stroke: var(--icon-coral);
+  stroke-width: 1.8;
+  color: var(--icon-coral);
+}
+
+.modality-icon[data-modality="computer"]:hover svg {
+  stroke: var(--icon-coral-light);
+  color: var(--icon-coral-light);
+}
+
+/* Second icon - warm brown */
+.modality-icon[data-modality="browser"] svg {
+  stroke: var(--icon-warm);
+  stroke-width: 1.5;
+}
+
+/* Upper icons - lighter tan */
+.modality-icon[data-modality="tools"] svg,
+.modality-icon[data-modality="knowledge"] svg,
+.modality-icon[data-modality="sync"] svg {
+  stroke: var(--icon-tan);
+  stroke-width: 1.4;
+}
+
+/* Start Scene - matches original app */
+.start-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Title styling - outlined text from Her */
+.start-title {
+  font-size: clamp(80px, 15vw, 140px);
+  font-weight: 200;
+  letter-spacing: 0.2em;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 248, 240, 0.7);
+  text-transform: uppercase;
+  font-family: var(--font-family);
+}
+
+.start-title sup {
+  font-size: 0.4em;
+  vertical-align: super;
+  -webkit-text-stroke-width: 1px;
+}
+
+.start-subtitle {
+  font-size: clamp(14px, 2vw, 18px);
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  font-family: var(--font-family);
+}
+
+.start-button {
+  padding: 16px 48px;
+  font-family: var(--font-family);
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all var(--transition-fast) ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.start-button svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.start-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.6);
+  transform: scale(1.02);
+}
+
+.start-button:active {
+  transform: scale(0.98);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .os1-viewport {
+    width: 90vw;
+    height: 72vh;
+    border-radius: 4px;
+  }
+
+  .modality-dock {
+    bottom: 16px;
+    left: 16px;
+  }
+
+  .modality-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .start-content {
+    gap: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .os1-viewport {
+    width: 94vw;
+    height: 68vh;
+  }
+
+  .modality-dock {
+    bottom: 10px;
+    left: 10px;
+  }
+
+  .modality-icon {
+    width: 26px;
+    height: 26px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

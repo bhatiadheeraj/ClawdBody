@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String        @id @default(cuid())
+  name          String?
+  email         String?       @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  setup         SetupState?
+  integrations  Integration[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model SetupState {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Setup progress
+  status String @default("pending") // pending, github_connected, collecting_keys, provisioning, configuring_vm, ready, failed
+
+  // API Keys (encrypted in production)
+  claudeApiKey String?
+
+  // Orgo VM info
+  orgoProjectId   String?
+  orgoComputerId  String?
+  orgoComputerUrl String?
+  vmStatus        String? // creating, starting, running, stopped
+
+  // GitHub vault repo
+  vaultRepoName String?
+  vaultRepoUrl  String?
+
+  // Setup steps completed
+  vmCreated           Boolean @default(false)
+  repoCreated         Boolean @default(false)
+  repoCloned          Boolean @default(false)
+  browserUseInstalled Boolean @default(false)
+  gitSyncConfigured   Boolean @default(false)
+  ralphWiggumSetup    Boolean @default(false)
+
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Integration {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Integration info
+  provider     String // gmail, calendar, slack, etc.
+  status       String    @default("connected") // connected, disconnected, error
+  lastSyncedAt DateTime?
+  syncEnabled  Boolean   @default(true)
+
+  // Metadata (JSON for flexibility)
+  metadata String? // JSON string for provider-specific data
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+}

@@ -1,0 +1,585 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useSession, signOut } from 'next-auth/react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  CheckCircle2, 
+  Circle, 
+  Loader2, 
+  Server, 
+  GitBranch, 
+  Terminal,
+  LogOut,
+  ExternalLink,
+  AlertCircle,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
+  Trash2
+} from 'lucide-react'
+
+type SetupStep = 
+  | 'provisioning'
+  | 'creating_repo'
+  | 'configuring_vm'
+  | 'complete'
+
+interface SetupStatus {
+  status: string
+  vmCreated: boolean
+  repoCreated: boolean
+  repoCloned: boolean
+  browserUseInstalled: boolean
+  gitSyncConfigured: boolean
+  ralphWiggumSetup: boolean
+  orgoComputerId?: string
+  orgoComputerUrl?: string
+  vaultRepoUrl?: string
+  errorMessage?: string
+}
+
+export function SetupWizard() {
+  const { data: session } = useSession()
+  const [currentStep, setCurrentStep] = useState<SetupStep>('provisioning')
+  const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [currentScreenshot, setCurrentScreenshot] = useState<string | null>(null)
+  const [isProgressCollapsed, setIsProgressCollapsed] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  
+  // Poll for screenshots if VM is created
+  useEffect(() => {
+    if (!setupStatus?.orgoComputerId || !setupStatus?.vmCreated) {
+      return
+    }
+
+    const fetchScreenshot = async () => {
+      try {
+        const res = await fetch('/api/setup/screenshot')
+        if (res.ok) {
+          const data = await res.json()
+          // Handle both base64 image and image URL
+          if (data.image && data.image.length > 0) {
+            setCurrentScreenshot(data.image)
+          } else if (data.imageUrl) {
+            // If we got a URL, use it directly
+            setCurrentScreenshot(data.imageUrl)
+          } else if (data.error) {
+            // Only log non-503 errors (503 means VM is starting, which is expected)
+            if (res.status !== 503) {
+              console.error('Screenshot API error:', data.error)
+            }
+          }
+        } else {
+          // 503 (Service Unavailable) means VM is starting - this is expected, don't log as error
+          if (res.status === 503) {
+            // VM is still starting, this is normal - don't log as error
+            return
+          }
+          
+          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+          // Only log non-503 errors
+          if (res.status !== 503) {
+            console.error('Failed to fetch screenshot:', errorData.error)
+          }
+        }
+      } catch (error) {
+        // Network errors are also expected during VM startup
+        console.error('Failed to fetch screenshot:', error)
+        // Don't clear the existing screenshot on transient errors
+      }
+    }
+
+    // Initial fetch
+    fetchScreenshot()
+
+    // Poll every 500ms for smooth video-like stream
+    const interval = setInterval(fetchScreenshot, 500)
+
+    return () => clearInterval(interval)
+  }, [setupStatus?.orgoComputerId, setupStatus?.vmCreated])
+
+  // Check setup status on mount
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const res = await fetch('/api/setup/status')
+        if (res.ok) {
+          const status: SetupStatus = await res.json()
+          setSetupStatus(status)
+          
+          // Update step based on status - check status field first, then boolean flags
+          if (status.errorMessage) {
+            setError(status.errorMessage)
+            // Don't change step, just show error
+          } else if (status.status === 'ready' || status.ralphWiggumSetup) {
+            setCurrentStep('complete')
+          } else if (status.status === 'configuring_vm' || status.repoCloned) {
+            setCurrentStep('configuring_vm')
+          } else if (status.status === 'creating_repo') {
+            // Only show creating_repo step if status is actually 'creating_repo'
+            // (i.e., when creating a new repo)
+            setCurrentStep('creating_repo')
+          } else if (status.vmCreated && status.repoCreated) {
+            // If VM and repo are both created, skip to configuring_vm
+            setCurrentStep('configuring_vm')
+          } else if (status.vmCreated) {
+            // VM created but repo not yet created - should be creating_repo
+            setCurrentStep('creating_repo')
+          } else if (status.status === 'provisioning') {
+            setCurrentStep('provisioning')
+          } else {
+            // If no active setup, show complete
+            setCurrentStep('complete')
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch status:', e)
+      }
+    }
+
+    checkStatus()
+  }, [])
+
+  // Poll for setup status during provisioning
+  useEffect(() => {
+    if (currentStep === 'provisioning' || currentStep === 'creating_repo' || currentStep === 'configuring_vm') {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch('/api/setup/status')
+          if (res.ok) {
+            const status: SetupStatus = await res.json()
+            setSetupStatus(status)
+            
+            // Update step based on status - check status field first, then boolean flags
+            if (status.errorMessage) {
+              setError(status.errorMessage)
+              // Don't change step, just show error
+            } else if (status.status === 'ready' || status.ralphWiggumSetup) {
+              setCurrentStep('complete')
+            } else if (status.status === 'configuring_vm' || status.repoCloned) {
+              setCurrentStep('configuring_vm')
+            } else if (status.status === 'creating_repo') {
+              // Only show creating_repo step if status is actually 'creating_repo'
+              // (i.e., when creating a new repo)
+              setCurrentStep('creating_repo')
+            } else if (status.vmCreated && status.repoCreated) {
+              // If VM and repo are both created, skip to configuring_vm
+              setCurrentStep('configuring_vm')
+            } else if (status.vmCreated) {
+              // VM created but repo not yet created - should be creating_repo
+              setCurrentStep('creating_repo')
+            } else if (status.status === 'provisioning') {
+              setCurrentStep('provisioning')
+            }
+          }
+        } catch (e) {
+          console.error('Failed to fetch status:', e)
+        }
+      }, 2000)
+      
+      return () => clearInterval(interval)
+    }
+  }, [currentStep])
+
+  const steps = [
+    { id: 'provisioning', label: 'VM Setup', icon: Server },
+    { id: 'creating_repo', label: 'Vault Repo', icon: GitBranch },
+    { id: 'configuring_vm', label: 'Configure', icon: Terminal },
+    { id: 'complete', label: 'Ready', icon: CheckCircle2 },
+  ]
+
+  const getStepStatus = (stepId: string) => {
+    const stepOrder = ['provisioning', 'creating_repo', 'configuring_vm', 'complete']
+    const currentIndex = stepOrder.indexOf(currentStep)
+    const stepIndex = stepOrder.indexOf(stepId)
+    
+    if (stepIndex < currentIndex) return 'complete'
+    if (stepIndex === currentIndex) return 'current'
+    return 'pending'
+  }
+
+  return (
+    <div className="min-h-screen bg-sam-bg relative">
+      {/* Ambient glow - warm orange inspired by "Her" */}
+      <div className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-sam-accent/8 rounded-full blur-[150px] pointer-events-none" />
+      
+      <div className="relative z-10 max-w-4xl mx-auto px-6 py-12">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-12">
+          <div>
+            <h1 className="font-display text-3xl font-bold mb-1">
+              <span className="text-gradient">OS-1</span> Setup
+            </h1>
+            <p className="text-sam-text-dim font-mono text-sm">
+              Welcome, {session?.user?.name || 'Agent'}
+            </p>
+          </div>
+          
+          <button
+            onClick={() => signOut({ callbackUrl: '/' })}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-sam-border hover:border-sam-error/50 text-sam-text-dim hover:text-sam-error transition-all"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="text-sm font-mono">Sign out</span>
+          </button>
+        </div>
+
+        {/* Progress steps */}
+        <div className="flex items-center justify-between mb-12 relative">
+          {/* Progress line */}
+          <div className="absolute top-5 left-0 right-0 h-0.5 bg-sam-border" />
+          <motion.div 
+            className="absolute top-5 left-0 h-0.5 bg-sam-accent"
+            initial={{ width: '0%' }}
+            animate={{ 
+              width: `${(steps.findIndex(s => s.id === currentStep) / (steps.length - 1)) * 100}%` 
+            }}
+            transition={{ duration: 0.5 }}
+          />
+          
+          {steps.map((step, index) => {
+            const status = getStepStatus(step.id)
+            const Icon = step.icon
+            
+            return (
+              <div key={step.id} className="relative flex flex-col items-center">
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className={`
+                    w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all duration-300
+                    ${status === 'complete' ? 'bg-sam-accent text-sam-bg' : ''}
+                    ${status === 'current' ? 'bg-sam-surface border-2 border-sam-accent text-sam-accent' : ''}
+                    ${status === 'pending' ? 'bg-sam-surface border border-sam-border text-sam-text-dim' : ''}
+                  `}
+                >
+                  {status === 'complete' ? (
+                    <CheckCircle2 className="w-5 h-5" />
+                  ) : status === 'current' && currentStep !== 'complete' ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Icon className="w-5 h-5" />
+                  )}
+                </motion.div>
+                <span className={`
+                  mt-2 text-xs font-mono
+                  ${status === 'current' ? 'text-sam-accent' : 'text-sam-text-dim'}
+                `}>
+                  {step.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Step content */}
+        <AnimatePresence mode="wait">
+          {(currentStep === 'provisioning' || currentStep === 'creating_repo' || currentStep === 'configuring_vm') && (
+            <motion.div
+              key="provisioning"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="p-4 rounded-lg bg-sam-error/10 border border-sam-error/30 flex items-start gap-3"
+                >
+                  <AlertCircle className="w-5 h-5 text-sam-error flex-shrink-0 mt-0.5" />
+                  <p className="text-sam-error text-sm">{error}</p>
+                </motion.div>
+              )}
+              
+              {/* Two-column layout: VM stream on left, progress on right */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* VM Stream on Left */}
+                <div className="rounded-2xl border border-sam-border bg-sam-surface/50 backdrop-blur overflow-hidden">
+                  <div className="px-6 py-4 border-b border-sam-border bg-sam-surface/50 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-display font-bold text-sam-text">VM Screen</h3>
+                      <p className="text-xs text-sam-text-dim font-mono">Live view</p>
+                    </div>
+                    {setupStatus?.orgoComputerUrl && (
+                      <a
+                        href={setupStatus.orgoComputerUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-sam-accent hover:underline flex items-center gap-1"
+                      >
+                        Open in Orgo
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                  <div className="aspect-video bg-sam-bg flex items-center justify-center relative">
+                    {setupStatus?.vmCreated && setupStatus?.orgoComputerId ? (
+                        currentScreenshot ? (
+                          <img 
+                            src={currentScreenshot.startsWith('http') ? currentScreenshot : `data:image/png;base64,${currentScreenshot}`}
+                            alt="VM Screen"
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              console.error('Failed to load screenshot image')
+                              setCurrentScreenshot(null)
+                            }}
+                          />
+                        ) : (
+                        <div className="flex flex-col items-center gap-3 text-sam-text-dim">
+                          <Loader2 className="w-8 h-8 animate-spin text-sam-accent" />
+                          <p className="text-sm font-mono">Loading VM screen...</p>
+                        </div>
+                      )
+                    ) : (
+                      <div className="flex flex-col items-center gap-3 text-sam-text-dim">
+                        <Server className="w-12 h-12" />
+                        <p className="text-sm font-mono">VM not created yet</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Progress Card on Right (Collapsible) */}
+                <div className="rounded-2xl border border-sam-border bg-sam-surface/50 backdrop-blur overflow-hidden">
+                  <div 
+                    className="px-6 py-4 border-b border-sam-border bg-sam-surface/50 flex items-center justify-between cursor-pointer hover:bg-sam-surface/70 transition-colors"
+                    onClick={() => setIsProgressCollapsed(!isProgressCollapsed)}
+                  >
+                    <div>
+                      <h2 className="text-lg font-display font-bold mb-1">Setup Progress</h2>
+                      <p className="text-xs text-sam-text-dim font-mono">
+                        This takes about 2-3 minutes. Please don't close this page.
+                      </p>
+                    </div>
+                    {isProgressCollapsed ? (
+                      <ChevronDown className="w-5 h-5 text-sam-text-dim" />
+                    ) : (
+                      <ChevronUp className="w-5 h-5 text-sam-text-dim" />
+                    )}
+                  </div>
+
+                  {!isProgressCollapsed && (
+                    <div className="p-6 overflow-y-auto max-h-[calc(100vh-400px)]">
+                      <div className="space-y-4">
+                        <SetupTaskItem
+                          label="Creating Orgo VM"
+                          sublabel="Project: claude-code"
+                          status={setupStatus?.vmCreated ? 'complete' : currentStep === 'provisioning' ? 'running' : 'pending'}
+                        />
+                        <SetupTaskItem
+                          label="Creating vault repository"
+                          sublabel="Private GitHub repo with template"
+                          status={setupStatus?.repoCreated ? 'complete' : currentStep === 'creating_repo' ? 'running' : 'pending'}
+                        />
+                        <SetupTaskItem
+                          label="Cloning vault to VM"
+                          sublabel="Setting up Git sync"
+                          status={setupStatus?.repoCloned ? 'complete' : (setupStatus?.repoCreated && currentStep === 'configuring_vm') ? 'running' : 'pending'}
+                        />
+                        <SetupTaskItem
+                          label="Installing browser-use"
+                          sublabel="Browser automation library"
+                          status={setupStatus?.browserUseInstalled ? 'complete' : (setupStatus?.repoCloned && currentStep === 'configuring_vm') ? 'running' : 'pending'}
+                        />
+                        <SetupTaskItem
+                          label="Configuring Git sync"
+                          sublabel="Auto-sync with GitHub"
+                          status={setupStatus?.gitSyncConfigured ? 'complete' : (setupStatus?.browserUseInstalled && currentStep === 'configuring_vm') ? 'running' : 'pending'}
+                        />
+                        <SetupTaskItem
+                          label="Setting up Ralph Wiggum"
+                          sublabel="Long-running task manager"
+                          status={setupStatus?.ralphWiggumSetup ? 'complete' : (setupStatus?.gitSyncConfigured && currentStep === 'configuring_vm') ? 'running' : 'pending'}
+                        />
+                      </div>
+
+                      {/* Terminal output preview */}
+                      <div className="mt-6 p-4 rounded-xl border border-sam-border bg-sam-bg font-mono text-xs overflow-hidden">
+                        <div className="flex items-center gap-2 mb-3 text-sam-text-dim">
+                          <Terminal className="w-4 h-4" />
+                          <span>VM Console</span>
+                        </div>
+                        <div className="text-sam-accent">
+                          <span className="text-sam-text-dim">$</span> {getTerminalText(currentStep, setupStatus)}
+                          <span className="terminal-cursor">▊</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {currentStep === 'complete' && (
+            <motion.div
+              key="complete"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              <div className="p-8 rounded-2xl border border-sam-accent/30 bg-sam-accent/5 backdrop-blur text-center">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', delay: 0.2 }}
+                  className="w-20 h-20 rounded-full bg-sam-accent/20 flex items-center justify-center mx-auto mb-6"
+                >
+                  <CheckCircle2 className="w-10 h-10 text-sam-accent" />
+                </motion.div>
+                
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1">
+                    <h2 className="text-3xl font-display font-bold mb-2">
+                      <span className="text-gradient">OS-1 is ready</span>
+                    </h2>
+                    <p className="text-sam-text-dim max-w-md">
+                      Your AI agent is fully configured and ready to assist you.
+                    </p>
+                  </div>
+                  {setupStatus?.orgoComputerId && (
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Are you sure you want to delete your computer? This will reset your setup and you will need to start over.')) {
+                          return
+                        }
+                        setIsDeleting(true)
+                        try {
+                          const res = await fetch('/api/setup/delete-computer', {
+                            method: 'POST',
+                          })
+                          if (res.ok) {
+                            // Reset to initial state
+                            setCurrentStep('provisioning')
+                            setSetupStatus(null)
+                          } else {
+                            const error = await res.json()
+                            alert(`Failed to delete computer: ${error.error || 'Unknown error'}`)
+                          }
+                        } catch (error) {
+                          console.error('Failed to delete computer:', error)
+                          alert('Failed to delete computer. Please try again.')
+                        } finally {
+                          setIsDeleting(false)
+                        }
+                      }}
+                      disabled={isDeleting}
+                      className="px-4 py-2 rounded-lg border border-sam-error/50 bg-sam-error/10 text-sam-error hover:bg-sam-error/20 transition-all font-display font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-4 h-4" />
+                          Delete Computer
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4 max-w-lg mx-auto">
+                  {setupStatus?.orgoComputerUrl && (
+                    <a
+                      href={setupStatus.orgoComputerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl border border-sam-border bg-sam-surface hover:border-sam-accent transition-all"
+                    >
+                      <Server className="w-5 h-5 text-sam-accent" />
+                      <span className="font-mono text-sm">View VM</span>
+                      <ExternalLink className="w-4 h-4 text-sam-text-dim" />
+                    </a>
+                  )}
+                  
+                  {setupStatus?.vaultRepoUrl && (
+                    <a
+                      href={setupStatus.vaultRepoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 px-6 py-4 rounded-xl border border-sam-border bg-sam-surface hover:border-sam-accent transition-all"
+                    >
+                      <GitBranch className="w-5 h-5 text-sam-accent" />
+                      <span className="font-mono text-sm">Vault Repo</span>
+                      <ExternalLink className="w-4 h-4 text-sam-text-dim" />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Next steps */}
+              <div className="p-6 rounded-xl border border-sam-border bg-sam-surface/50">
+                <h3 className="font-display font-bold mb-4">What's next?</h3>
+                <ul className="space-y-3 text-sm text-sam-text-dim">
+                  <li className="flex items-start gap-3">
+                    <span className="text-sam-accent">1.</span>
+                    <span>Add tasks to <code className="text-sam-accent bg-sam-bg px-1 rounded">tasks.md</code> in your vault</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-sam-accent">2.</span>
+                    <span><a href="/learning-sources" className="text-sam-accent hover:underline">Connect learning sources</a> (Gmail, Calendar, Slack)</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-sam-accent">3.</span>
+                    <span>Watch OS-1 proactively handle your tasks</span>
+                  </li>
+                </ul>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
+}
+
+function SetupTaskItem({ 
+  label, 
+  sublabel, 
+  status 
+}: { 
+  label: string
+  sublabel: string
+  status: 'pending' | 'running' | 'complete' 
+}) {
+  return (
+    <div className="flex items-center gap-4 p-4 rounded-lg bg-sam-bg/50">
+      <div className="flex-shrink-0">
+        {status === 'complete' && <CheckCircle2 className="w-6 h-6 text-sam-accent" />}
+        {status === 'running' && <Loader2 className="w-6 h-6 text-sam-warning animate-spin" />}
+        {status === 'pending' && <Circle className="w-6 h-6 text-sam-text-dim" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`font-medium ${status === 'complete' ? 'text-sam-text' : status === 'running' ? 'text-sam-warning' : 'text-sam-text-dim'}`}>
+          {label}
+        </p>
+        <p className="text-xs text-sam-text-dim truncate">{sublabel}</p>
+      </div>
+    </div>
+  )
+}
+
+function getTerminalText(step: SetupStep, status: SetupStatus | null): string {
+  if (step === 'provisioning') {
+    return 'orgo compute create --project claude-code --os linux'
+  }
+  if (step === 'creating_repo') {
+    return 'gh repo create samantha-vault --private --template'
+  }
+  if (step === 'configuring_vm') {
+    if (status?.browserUseInstalled) return 'systemctl enable git-sync.service'
+    if (status?.repoCloned) return 'pip install browser-use && browser-use install'
+    return 'git clone git@github.com:user/samantha-vault.git ~/vault'
+  }
+  return 'echo "Setup complete!"'
+}
+
+
