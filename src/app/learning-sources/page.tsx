@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { Mail, Calendar, MessageSquare, FileText, MessageCircle, Bot, Video, Phone, Loader2, RefreshCw, Check, Key, AlertCircle, ArrowRight, ExternalLink, LogOut, Github, X, Server, GitBranch, Terminal, CheckCircle2, ChevronDown, ChevronUp, Trash2, XCircle } from 'lucide-react'
@@ -111,10 +111,92 @@ interface SetupStatus {
   orgoComputerUrl?: string
   vaultRepoUrl?: string
   errorMessage?: string
+  vmProvider?: string
+}
+
+// Memory density weights for each source (out of 100 total)
+// Weights are balanced so connecting all available sources approaches 100%
+// The three core sources (Gmail, Calendar, GitHub) total 50% to leave room for other sources
+const SOURCE_WEIGHTS: Record<string, number> = {
+  gmail: 25,      // Email has the most context
+  calendar: 15,   // Scheduling context is important
+  github: 15,     // Project context
+  slack: 12,      // Team communication
+  notion: 12,     // Structured knowledge
+  chatgpt: 8,     // Brainstorming history
+  claude: 8,      // Research and ideas
+  granola: 3,     // Meeting notes
+  fireflies: 2,   // Meeting transcripts
+  fathom: 0,      // Calls (not yet weighted)
+}
+
+interface MemoryDensity {
+  percentage: number
+  label: string
+  color: string
+  bgColor: string
+  sufficient: boolean
+}
+
+function calculateMemoryDensity(connectedSources: Set<string>): MemoryDensity {
+  let total = 0
+  connectedSources.forEach(source => {
+    total += SOURCE_WEIGHTS[source] || 0
+  })
+
+  const percentage = Math.min(total, 100)
+
+  if (percentage === 0) {
+    return { percentage: 0, label: 'Empty', color: 'text-sam-text-dim', bgColor: 'bg-sam-text-dim', sufficient: false }
+  } else if (percentage < 25) {
+    return { percentage, label: 'Low — connect more sources', color: 'text-orange-400', bgColor: 'bg-orange-400', sufficient: false }
+  } else if (percentage < 50) {
+    return { percentage, label: 'Basic context', color: 'text-yellow-400', bgColor: 'bg-yellow-400', sufficient: true }
+  } else if (percentage < 75) {
+    return { percentage, label: 'Good context', color: 'text-green-400', bgColor: 'bg-green-400', sufficient: true }
+  } else {
+    return { percentage, label: 'Rich context', color: 'text-emerald-400', bgColor: 'bg-emerald-400', sufficient: true }
+  }
+}
+
+// Human-like context phrases for each source
+const SOURCE_PHRASES: Record<string, string> = {
+  gmail: 'your conversations and who matters to you',
+  calendar: 'your schedule and commitments',
+  github: 'the projects you\'re working on',
+  slack: 'your team discussions',
+  notion: 'your notes and documents',
+  chatgpt: 'your brainstorming history',
+  claude: 'your research and ideas',
+  granola: 'your meeting notes',
+  fireflies: 'your meeting transcripts',
+  fathom: 'your calls',
+}
+
+function generateContextMessage(connectedSources: Set<string>): string {
+  const sources = Array.from(connectedSources).filter(s => SOURCE_PHRASES[s])
+
+  if (sources.length === 0) {
+    return ''
+  }
+
+  const phrases = sources.map(s => SOURCE_PHRASES[s])
+
+  let combined: string
+  if (phrases.length === 1) {
+    combined = phrases[0]
+  } else if (phrases.length === 2) {
+    combined = `${phrases[0]} and ${phrases[1]}`
+  } else {
+    combined = `${phrases.slice(0, -1).join(', ')}, and ${phrases[phrases.length - 1]}`
+  }
+
+  return `Now I understand ${combined}.`
 }
 
 export default function LearningSourcesPage() {
   const { data: session } = useSession()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [refreshKey, setRefreshKey] = useState(0)
   const [claudeApiKey, setClaudeApiKey] = useState('')
@@ -126,6 +208,34 @@ export default function LearningSourcesPage() {
   const [setupStatus, setSetupStatus] = useState<SetupStatus | null>(null)
   const [setupLogs, setSetupLogs] = useState<Array<{ time: Date; message: string; type: 'info' | 'success' | 'error' }>>([])
   const [isLoadingStatus, setIsLoadingStatus] = useState(true) // Track if we're still loading initial status
+  const [isCheckingRedirect, setIsCheckingRedirect] = useState(true) // Track if we're checking for redirect
+  const [connectedSources, setConnectedSources] = useState<Set<string>>(new Set())
+
+  // Fetch integration status for memory density
+  const fetchIntegrationStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/integrations/status')
+      if (response.ok) {
+        const data = await response.json()
+        const connected = new Set<string>()
+        if (data.status) {
+          Object.entries(data.status).forEach(([key, value]: [string, any]) => {
+            // Include both connected and pending sources (pending means they're set up but waiting for VM)
+            if (value?.connected || value?.pending) {
+              connected.add(key)
+            }
+          })
+        }
+        setConnectedSources(connected)
+      }
+    } catch (error) {
+      console.error('Failed to fetch integration status:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchIntegrationStatus()
+  }, [fetchIntegrationStatus, refreshKey])
 
   useEffect(() => {
     // Handle OAuth callback parameters
@@ -209,7 +319,17 @@ export default function LearningSourcesPage() {
         if (res.ok) {
           const status: SetupStatus = await res.json()
           setSetupStatus(status)
+          
+          // Redirect to select-vm if user hasn't selected a VM provider and doesn't have a VM set up
+          // Only redirect if they're truly starting fresh (pending status and no VM)
+          if (!status.vmProvider && !status.vmCreated) {
+            router.push('/select-vm')
+            return // Don't set loading states, just redirect
+          }
+          
+          // Only set loading states if we're not redirecting
           setIsLoadingStatus(false)
+          setIsCheckingRedirect(false)
           
           // Set UI state based on status
           if (status.status === 'ready' && status.orgoComputerId) {
@@ -221,14 +341,16 @@ export default function LearningSourcesPage() {
           }
         } else {
           setIsLoadingStatus(false)
+          setIsCheckingRedirect(false)
         }
       } catch (e) {
         console.error('Failed to check initial setup status:', e)
         setIsLoadingStatus(false)
+        setIsCheckingRedirect(false)
       }
     }
     checkStatusImmediately()
-  }, [])
+  }, [router])
 
   // Poll setup status when progress is shown
   useEffect(() => {
@@ -337,35 +459,45 @@ export default function LearningSourcesPage() {
     }
   }
 
+  // Show loading state while checking if redirect is needed
+  if (isCheckingRedirect) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-sam-bg">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-2 border-sam-accent border-t-transparent rounded-full animate-spin" />
+          <p className="text-sam-text-dim font-mono text-sm">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-sam-bg">
       <div className="max-w-7xl mx-auto px-6 py-16">
         {/* Top Bar with Logout */}
         <div className="flex items-center justify-between mb-12">
-          <div className="flex-1" />
-          <button
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <img 
+              src="/logos/ClawdBrain.png" 
+              alt="ClawdBrain" 
+              className="h-20 md:h-24 object-contain"
+            />
+          </motion.div>
+          <motion.button
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
             onClick={() => signOut({ callbackUrl: '/' })}
             className="flex items-center gap-2 px-4 py-2 rounded-lg border border-sam-border hover:border-sam-error/50 text-sam-text-dim hover:text-sam-error transition-all"
           >
             <LogOut className="w-4 h-4" />
             <span className="text-sm font-mono">Sign out</span>
-          </button>
+          </motion.button>
         </div>
-
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="mb-12"
-        >
-          <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 text-sam-text leading-tight">
-            Connect your sources
-          </h1>
-          <p className="text-lg text-sam-text-dim max-w-3xl font-body leading-relaxed">
-          Each source becomes structured context the AI agent uses to execute tasks. Your private data lives securely in a private GitHub repository.
-          </p>
-        </motion.div>
 
         {/* Setup Progress or API Keys Section */}
         <motion.div
@@ -422,10 +554,12 @@ export default function LearningSourcesPage() {
               }}
             />
           ) : (
-            <div className="p-8 rounded-2xl border border-sam-border bg-sam-surface/50 backdrop-blur">
-              <h2 className="text-2xl font-display font-bold mb-2">Enter your API Keys</h2>
+            <>
+              <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 text-sam-text leading-tight">Setup VM</h1>
+              <div className="p-8 rounded-2xl border border-sam-border bg-sam-surface/50 backdrop-blur">
+                <h2 className="text-2xl font-display font-bold mb-2">Enter your API Keys</h2>
               <p className="text-sam-text-dim mb-8">
-                Your keys are encrypted and stored locally. We never access or store your credentials—they remain private to you.
+                Your keys are encrypted and stored locally. We never access or store your credentials. They remain private to you.
               </p>
 
               {setupError && (
@@ -521,7 +655,23 @@ export default function LearningSourcesPage() {
                 )}
               </button>
             </div>
+            </>
           )}
+        </motion.div>
+
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-12"
+        >
+          <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 text-sam-text leading-tight">
+            Connect your sources
+          </h1>
+          <p className="text-lg text-sam-text-dim max-w-3xl font-body leading-relaxed">
+          Each source becomes structured context the AI agent uses to infer and execute tasks. Your private data lives securely in a private GitHub repository.
+          </p>
         </motion.div>
 
         {/* Connectors Grid */}
@@ -532,41 +682,86 @@ export default function LearningSourcesPage() {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12"
         >
           {connectors.map((connector, index) => (
-            <ConnectorCard key={`${connector.id}-${refreshKey}`} connector={connector} index={index} />
+            <ConnectorCard
+              key={`${connector.id}-${refreshKey}`}
+              connector={connector}
+              index={index}
+              onConnect={() => fetchIntegrationStatus()}
+            />
           ))}
         </motion.div>
 
         {/* Footer Info */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.4 }}
-          className="flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-2xl border border-sam-border bg-sam-surface/30"
-        >
-          <div className="flex items-center gap-4">
-            <div>
-              <p className="text-sm font-mono text-sam-text-dim mb-1">Memory Density</p>
-              <div className="flex items-center gap-2">
-                <div className="w-32 h-2 bg-sam-surface rounded-full overflow-hidden">
-                  <div className="h-full bg-sam-accent rounded-full" style={{ width: '0%' }} />
+        {(() => {
+          const density = calculateMemoryDensity(connectedSources)
+          const contextMessage = generateContextMessage(connectedSources)
+          return (
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-2xl border bg-sam-surface/30 ${
+                  !density.sufficient && density.percentage > 0
+                    ? 'border-orange-400/50'
+                    : 'border-sam-border'
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div>
+                    <p className="text-sm font-mono text-sam-text-dim mb-1">Memory Density</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-40 h-2.5 bg-sam-surface rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${density.percentage}%` }}
+                          transition={{ duration: 0.5, ease: 'easeOut' }}
+                          className={`h-full rounded-full ${density.bgColor}`}
+                        />
+                      </div>
+                      <span className={`text-sm font-mono ${density.color}`}>
+                        {density.percentage}%
+                      </span>
+                    </div>
+                    <p className={`text-xs mt-1 ${density.color}`}>
+                      {density.label}
+                    </p>
+                  </div>
                 </div>
-                <span className="text-sm text-sam-text-dim font-mono">Empty</span>
-              </div>
-            </div>
-          </div>
-          <p className="text-sm text-sam-text-dim font-body max-w-md text-center md:text-right">
-            OS-1 understands you based on your memories. Your data stays encrypted and private—we never store, share, or train on your personal information.
-          </p>
-          <button className="px-6 py-3 rounded-xl bg-sam-surface border border-sam-border text-sam-text-dim hover:border-sam-accent hover:text-sam-text transition-all font-display font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-            Next
-          </button>
-        </motion.div>
+                <div className="flex flex-col gap-2 max-w-md text-center md:text-right">
+                  <p className="text-sm text-sam-text-dim font-body">
+                    {!density.sufficient ? (
+                      <span className="text-orange-400">
+                        Connect at least Gmail or Calendar to proceed.
+                      </span>
+                    ) : contextMessage ? (
+                      <span className="text-sam-text">{contextMessage}</span>
+                    ) : (
+                      'Your data stays encrypted and private.'
+                    )}
+                  </p>
+                </div>
+              </motion.div>
+              {/* Privacy Notice */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="mt-6 text-center"
+              >
+                <p className="text-xs text-sam-text-dim/80 font-body leading-relaxed max-w-3xl mx-auto">
+                  <span className="font-semibold text-sam-text-dim">Privacy:</span> We don't store your data on our servers or in the cloud. All your data belongs to you and is stored in your private GitHub repository vault, synced to your VM. Your memories, tasks, and context remain completely private and under your control.
+                </p>
+              </motion.div>
+            </>
+          )
+        })()}
       </div>
     </div>
   )
 }
 
-function ConnectorCard({ connector, index }: { connector: Connector; index: number }) {
+function ConnectorCard({ connector, index, onConnect }: { connector: Connector; index: number; onConnect?: () => void }) {
   const [isConnecting, setIsConnecting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [isSynced, setIsSynced] = useState(false)
@@ -658,6 +853,7 @@ function ConnectorCard({ connector, index }: { connector: Connector; index: numb
       if (data.email) {
         setConnectedEmail(data.email)
       }
+      onConnect?.()
     } catch (error) {
       console.error(`Failed to connect ${connector.name}:`, error)
       alert(`Failed to connect ${connector.name}. Please try again.`)
@@ -689,7 +885,8 @@ function ConnectorCard({ connector, index }: { connector: Connector; index: numb
       setIsConnected(true)
       setShowGithubDialog(false)
       setSelectedRepos(new Set())
-      
+      onConnect?.()
+
       if (data.cloneErrors && data.cloneErrors.length > 0) {
         alert(`Connected ${data.repositories.length} repositories. Some repositories had cloning errors.`)
       }

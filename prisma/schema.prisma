@@ -64,6 +64,9 @@ model SetupState {
   // Setup progress
   status String @default("pending") // pending, github_connected, collecting_keys, provisioning, configuring_vm, ready, failed
 
+  // VM Provider selection
+  vmProvider String? // orgo, flyio, aws
+
   // API Keys (encrypted in production)
   claudeApiKey String?
 

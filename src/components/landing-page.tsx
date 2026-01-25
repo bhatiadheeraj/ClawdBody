@@ -2,32 +2,21 @@
 
 import { signIn } from 'next-auth/react'
 import { motion } from 'framer-motion'
-import { Github, Mail, Calendar, Code, MessageSquare, Zap, Brain, Sparkles } from 'lucide-react'
+import { Github, Mail, Calendar, HardDrive, MessageSquare, MoreHorizontal } from 'lucide-react'
 
 export function LandingPage() {
+  const steps = [
+    { number: '1', text: 'Connect your sources' },
+    { number: '2', text: 'Get a cloud VM' },
+    { number: '3', text: 'AI runs 24/7 inferring & executing tasks' },
+  ]
+
   const integrations = [
     { name: 'Gmail', icon: Mail, color: 'text-red-400' },
     { name: 'Calendar', icon: Calendar, color: 'text-blue-400' },
-    { name: 'GitHub', icon: Code, color: 'text-gray-300' },
+    { name: 'Local Files', icon: HardDrive, color: 'text-green-400' },
     { name: 'Slack', icon: MessageSquare, color: 'text-purple-400' },
-  ]
-
-  const features = [
-    {
-      icon: Zap,
-      title: "No Setup Hassle",
-      description: "Don't spend hours setting it up. Get started in minutes."
-    },
-    {
-      icon: Brain,
-      title: "24/7 Automation",
-      description: "Runs continuously on Orgo VM, automating your life around the clock."
-    },
-    {
-      icon: Sparkles,
-      title: "Intelligent Actions",
-      description: "Infers tasks, plans, and executes them—taking actions on your behalf."
-    },
+    { name: 'More', icon: MoreHorizontal, color: 'text-gray-400' },
   ]
 
   return (
@@ -35,118 +24,161 @@ export function LandingPage() {
       <div className="landing-nebula" />
       <div className="landing-stars" />
 
-      {/* Main content */}
-      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24">
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 lg:py-32">
         {/* Hero Section */}
-        <div className="text-center mb-16 sm:mb-24">
+        <div className="text-center max-w-4xl mx-auto">
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-8"
+            className="mb-6 flex flex-col items-center gap-4"
           >
-            <div className="inline-block relative">
-              <motion.div
-                className="text-6xl sm:text-7xl lg:text-8xl font-bold mb-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.6 }}
-              >
-                <span className="bg-gradient-to-r from-rose-500 via-slate-400 to-teal-400 bg-clip-text text-transparent">
-                  ClawdBrain
-                </span>
-              </motion.div>
-              <motion.div
-                className="absolute -top-2 -right-2 w-4 h-4 bg-rose-400 rounded-full"
-                animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            </div>
+            <img 
+              src="/logos/ClawdBrain.png" 
+              alt="ClawdBrain" 
+              className="h-28 sm:h-32 lg:h-40 object-contain"
+            />
+            <span className="text-5xl sm:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-rose-500 via-slate-400 to-teal-400 bg-clip-text text-transparent">
+              ClawdBrain
+            </span>
           </motion.div>
 
-          <motion.h2
-            className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-rose-400 mb-6 tracking-[0.35em] uppercase"
+          <motion.h1
+            className="text-2xl sm:text-3xl lg:text-4xl font-semibold text-white mb-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.6 }}
+            transition={{ delay: 0.2, duration: 0.6 }}
           >
-            THE UX + BRAIN FOR CLAWDBOT
-          </motion.h2>
+            AI that actually knows you and execute tasks
+          </motion.h1>
 
           <motion.p
-            className="text-lg sm:text-xl text-gray-300 max-w-3xl mx-auto mb-8"
+            className="text-lg sm:text-xl text-gray-400 mb-10 max-w-2xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
           >
-            Making ClawdBot accessible for everyone. Connects with Gmail, Calendar, GitHub, Slack, and more—so your AI can infer tasks, plan, and execute them automatically.
+            Persistent memory. Sandboxed cloud VM. Works while you sleep.
           </motion.p>
 
           <motion.button
             onClick={() => signIn('github')}
-            className="group relative px-8 py-4 bg-gradient-to-r from-rose-500 via-slate-400 to-teal-400 text-slate-950 font-semibold rounded-full text-lg shadow-lg shadow-rose-500/40 hover:shadow-rose-500/60 transition-all duration-300 hover:scale-105"
+            className="px-8 py-4 bg-gradient-to-r from-rose-500 to-teal-400 text-slate-950 font-semibold rounded-full text-lg shadow-lg shadow-rose-500/30 hover:shadow-rose-500/50 transition-all duration-300"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
+            transition={{ delay: 0.4, duration: 0.6 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
             <span className="flex items-center gap-2">
               <Github className="w-5 h-5" />
-              Get Started
+              Start Free
             </span>
           </motion.button>
         </div>
 
-        {/* Features Section */}
+        {/* How it works */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 mb-16 sm:mb-24"
+          className="mt-20 sm:mt-28"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 0.6 }}
+        >
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-6 sm:gap-12">
+            {steps.map((step, index) => (
+              <motion.div
+                key={step.number}
+                className="flex items-center gap-4"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 + index * 0.1, duration: 0.4 }}
+              >
+                <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-teal-400 font-semibold">
+                  {step.number}
+                </div>
+                <span className="text-gray-300 text-lg">{step.text}</span>
+                {index < steps.length - 1 && (
+                  <span className="hidden sm:block text-gray-600 ml-6">→</span>
+                )}
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Integrations */}
+        <motion.div
+          className="mt-16 sm:mt-20 text-center"
           initial={{ opacity: 0, y: 40 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1, duration: 0.6 }}
         >
-          {features.map((feature, index) => (
-            <motion.div
-              key={feature.title}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-2xl p-6 sm:p-8 hover:bg-white/10 transition-all duration-300"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 1.2 + index * 0.1, duration: 0.6 }}
-              whileHover={{ y: -5 }}
-            >
-              <feature.icon className="w-8 h-8 sm:w-10 sm:h-10 text-teal-300 mb-4" />
-              <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
-              <p className="text-gray-400">{feature.description}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Integrations Section */}
-        <motion.div
-          className="text-center"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.5, duration: 0.6 }}
-        >
-          <h3 className="text-2xl sm:text-3xl font-semibold text-white mb-8">
-            Connects With Everything
-          </h3>
-          <div className="flex flex-wrap justify-center items-center gap-8 sm:gap-12">
+          <p className="text-gray-500 mb-6 text-sm uppercase tracking-wider">Connects with</p>
+          <div className="flex justify-center items-center gap-8 sm:gap-12">
             {integrations.map((integration, index) => (
               <motion.div
                 key={integration.name}
-                className="flex flex-col items-center gap-2 group"
+                className="flex flex-col items-center gap-2"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 1.7 + index * 0.1, duration: 0.4 }}
-                whileHover={{ scale: 1.1 }}
+                transition={{ delay: 1.1 + index * 0.1, duration: 0.4 }}
               >
-                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl flex items-center justify-center group-hover:bg-white/10 transition-all duration-300">
-                  <integration.icon className={`w-6 h-6 sm:w-8 sm:h-8 ${integration.color}`} />
+                <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
+                  <integration.icon className={`w-6 h-6 ${integration.color}`} />
                 </div>
-                <span className="text-sm sm:text-base text-gray-400">{integration.name}</span>
+                <span className="text-sm text-gray-500">{integration.name}</span>
               </motion.div>
             ))}
+          </div>
+        </motion.div>
+
+        {/* Cloud Sandbox VMs */}
+        <motion.div
+          className="mt-16 sm:mt-20 text-center"
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.3, duration: 0.6 }}
+        >
+          <p className="text-gray-500 mb-6 text-sm uppercase tracking-wider">Runs on</p>
+          <div className="flex justify-center items-center gap-8 sm:gap-12">
+            <motion.a
+              href="https://orgo.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center gap-2 group"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.4, duration: 0.4 }}
+              whileHover={{ scale: 1.05 }}
+            >
+              <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center group-hover:bg-white/10 transition-colors">
+                <img src="/logos/orgo.png" alt="Orgo" className="w-7 h-7 object-contain" />
+              </div>
+              <span className="text-sm text-gray-500 group-hover:text-gray-300 transition-colors">Orgo</span>
+            </motion.a>
+
+            <motion.div
+              className="flex flex-col items-center gap-2"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.5, duration: 0.4 }}
+            >
+              <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
+                <img src="/logos/aws.png" alt="AWS" className="w-7 h-7 object-contain" />
+              </div>
+              <span className="text-sm text-gray-500">AWS</span>
+            </motion.div>
+
+            <motion.div
+              className="flex flex-col items-center gap-2"
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.6, duration: 0.4 }}
+            >
+              <div className="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center">
+                <img src="/logos/flyio.png" alt="Fly.io" className="w-7 h-7 object-contain" />
+              </div>
+              <span className="text-sm text-gray-500">Fly.io</span>
+            </motion.div>
           </div>
         </motion.div>
       </div>

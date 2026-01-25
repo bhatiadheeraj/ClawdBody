@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         clawdbotInstalled: false,
         telegramConfigured: false,
         gatewayStarted: false,
+        vmProvider: null,
       })
     }
 
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
       orgoComputerUrl: setupState.orgoComputerUrl,
       vaultRepoUrl: setupState.vaultRepoUrl,
       errorMessage: setupState.errorMessage,
+      vmProvider: setupState.vmProvider,
     })
 
   } catch (error) {
