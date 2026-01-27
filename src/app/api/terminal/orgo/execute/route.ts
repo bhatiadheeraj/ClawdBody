@@ -74,8 +74,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Execute bash command via Orgo API
+    // Wrap command to source NVM so that Node.js tools (like clawdbot) are available
+    const wrappedCommand = `
+source ~/.bashrc 2>/dev/null || true
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+${command}
+`.trim()
+    
     const client = new OrgoClient(orgoApiKey)
-    const result = await client.bash(orgoComputerId, command)
+    const result = await client.bash(orgoComputerId, wrappedCommand)
 
     return NextResponse.json({
       success: true,

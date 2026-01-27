@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
             : `integrations/gmail/messages-${index + 1}.md`
 
           return githubClient.writeFileToVault(
-            setupState.vaultRepoName,
+            setupState.vaultRepoName!,
             fileName,
             `# Gmail Messages (Batch ${index + 1} of ${batches.length})
 
@@ -98,7 +98,7 @@ ${messagesContent}
 
         // Create an index file
         await githubClient.writeFileToVault(
-          setupState.vaultRepoName,
+          setupState.vaultRepoName!,
           'integrations/gmail/index.md',
           `# Gmail Integration
 

@@ -38,15 +38,21 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'VM not found' }, { status: 404 })
       }
 
+      // Get SetupState for shared fields like vaultRepoUrl and repoCreated
+      const setupState = await prisma.setupState.findUnique({
+        where: { userId: session.user.id },
+      })
+
       const response: Record<string, unknown> = {
         status: vm.status,
         vmCreated: vm.vmCreated,
-        repoCreated: false, // This is on SetupState
+        repoCreated: setupState?.repoCreated || false,
         repoCloned: vm.repoCloned,
         gitSyncConfigured: vm.gitSyncConfigured,
         clawdbotInstalled: vm.clawdbotInstalled,
-        telegramConfigured: false, // This is on SetupState
+        telegramConfigured: vm.telegramConfigured || false,
         gatewayStarted: vm.gatewayStarted,
+        vaultRepoUrl: setupState?.vaultRepoUrl,
         errorMessage: vm.errorMessage,
         vmProvider: vm.provider,
         vmId: vm.id,

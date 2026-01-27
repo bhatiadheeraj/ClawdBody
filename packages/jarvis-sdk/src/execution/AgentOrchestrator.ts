@@ -495,13 +495,13 @@ export class AgentOrchestrator {
    */
   private emitEvent(
     type: string,
-    payload: Record<string, unknown>
+    payload: Record<string, unknown> | ManagedAgent | Task
   ): void {
     const event: JarvisEvent = {
       id: nanoid(),
       type: type as JarvisEvent['type'],
       timestamp: new Date(),
-      payload,
+      payload: payload as Record<string, unknown>,
       source: {
         type: 'agent',
         id: (payload as { id?: string }).id ?? 'unknown',

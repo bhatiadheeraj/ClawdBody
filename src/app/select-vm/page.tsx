@@ -75,6 +75,38 @@ interface E2BTimeoutOption {
   recommended?: boolean
 }
 
+interface OrgoRAMOption {
+  id: number
+  name: string
+  description: string
+  freeTier: boolean
+  recommended?: boolean
+}
+
+interface OrgoCPUOption {
+  id: number
+  name: string
+  description: string
+}
+
+const orgoRAMOptions: OrgoRAMOption[] = [
+  { id: 1, name: '1 GB', description: 'Light tasks', freeTier: true },
+  { id: 2, name: '2 GB', description: 'Basic tasks', freeTier: true },
+  { id: 4, name: '4 GB', description: 'Standard workloads', freeTier: true },
+  { id: 8, name: '8 GB', description: 'AI & development', freeTier: false, recommended: true },
+  { id: 16, name: '16 GB', description: 'Heavy workloads', freeTier: false },
+  { id: 32, name: '32 GB', description: 'Large datasets', freeTier: false },
+  { id: 64, name: '64 GB', description: 'Enterprise scale', freeTier: false },
+]
+
+const orgoCPUOptions: OrgoCPUOption[] = [
+  { id: 1, name: '1 Core', description: 'Light tasks' },
+  { id: 2, name: '2 Cores', description: 'Standard tasks' },
+  { id: 4, name: '4 Cores', description: 'Multi-threaded' },
+  { id: 8, name: '8 Cores', description: 'Heavy compute' },
+  { id: 16, name: '16 Cores', description: 'Maximum power' },
+]
+
 const vmOptions: VMOption[] = [
   {
     id: 'orgo',
@@ -173,6 +205,8 @@ export default function SelectVMPage() {
   const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [orgoError, setOrgoError] = useState<string | null>(null)
   const [orgoVMName, setOrgoVMName] = useState('')
+  const [selectedOrgoRAM, setSelectedOrgoRAM] = useState(8) // Default 8 GB (recommended)
+  const [selectedOrgoCPU, setSelectedOrgoCPU] = useState(2) // Default 2 cores
 
   // AWS configuration modal state
   const [showAWSModal, setShowAWSModal] = useState(false)
@@ -456,6 +490,15 @@ export default function SelectVMPage() {
       return
     }
 
+    // Check if selected RAM requires a paid plan
+    const selectedRAMOption = orgoRAMOptions.find(opt => opt.id === selectedOrgoRAM)
+    if (selectedRAMOption && !selectedRAMOption.freeTier) {
+      // User selected a paid tier - redirect to pricing page
+      window.open('https://www.orgo.ai/pricing', '_blank')
+      setOrgoError('Please upgrade your Orgo plan to use ' + selectedRAMOption.name + ' RAM. A new tab has been opened to the pricing page.')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -469,6 +512,8 @@ export default function SelectVMPage() {
           provider: 'orgo',
           orgoProjectId: selectedProject?.id,
           orgoProjectName: selectedProject?.name,
+          orgoRam: selectedOrgoRAM,
+          orgoCpu: selectedOrgoCPU,
         }),
       })
 
@@ -499,6 +544,8 @@ export default function SelectVMPage() {
     setNewProjectName('claude-brain')
     setOrgoError(null)
     setOrgoVMName('')
+    setSelectedOrgoRAM(8) // Reset to recommended (8 GB)
+    setSelectedOrgoCPU(2) // Reset to default (2 cores)
   }
 
   // AWS handlers
@@ -765,7 +812,7 @@ export default function SelectVMPage() {
             className="flex items-center gap-4"
           >
             <img 
-              src="/logos/ClawdBrain.png" 
+              src="/logos/ClawdBody.png" 
               alt="ClawdBody" 
               className="h-16 md:h-20 object-contain"
             />
@@ -1037,11 +1084,11 @@ export default function SelectVMPage() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               transition={{ duration: 0.2 }}
-              className="bg-sam-surface border border-sam-border rounded-2xl w-full max-w-lg overflow-hidden"
+              className="bg-sam-surface border border-sam-border rounded-2xl w-full max-w-lg overflow-hidden max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between p-6 border-b border-sam-border">
+              <div className="flex items-center justify-between p-6 border-b border-sam-border sticky top-0 bg-sam-surface z-10">
                 <div className="flex items-center gap-3">
                   <img src="/logos/orgo.png" alt="Orgo" className="w-8 h-8 object-contain" />
                   <h2 className="text-xl font-display font-semibold text-sam-text">
@@ -1255,10 +1302,105 @@ export default function SelectVMPage() {
                     )}
                   </motion.div>
                 )}
+
+                {/* RAM Selection */}
+                {keyValidated && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                    className="space-y-3"
+                  >
+                    <label className="text-sm font-medium text-sam-text flex items-center gap-2">
+                      <Server className="w-4 h-4 text-sam-accent" />
+                      Memory (RAM)
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {orgoRAMOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          onClick={() => setSelectedOrgoRAM(option.id)}
+                          className={`p-2.5 rounded-lg border text-left transition-all ${
+                            selectedOrgoRAM === option.id
+                              ? 'border-sam-accent bg-sam-accent/10'
+                              : 'border-sam-border hover:border-sam-accent/50 hover:bg-sam-bg'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-0.5">
+                            <span className="text-sam-text font-medium text-sm">{option.name}</span>
+                            {option.recommended && (
+                              <span className="text-[9px] font-mono text-sam-accent bg-sam-accent/10 px-1 py-0.5 rounded">
+                                Best
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-sam-text-dim">
+                            {option.description}
+                          </div>
+                          <div className={`text-[10px] mt-1 font-medium ${option.freeTier ? 'text-green-400' : 'text-amber-400'}`}>
+                            {option.freeTier ? 'Free Tier' : 'Paid Plan'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    {!orgoRAMOptions.find(opt => opt.id === selectedOrgoRAM)?.freeTier && (
+                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm">
+                          <p className="text-amber-400 font-medium">Paid Plan Required</p>
+                          <p className="text-amber-400/80 text-xs mt-0.5">
+                            {orgoRAMOptions.find(opt => opt.id === selectedOrgoRAM)?.name} RAM requires an upgraded Orgo plan. 
+                            <a 
+                              href="https://www.orgo.ai/pricing" 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="underline ml-1 hover:text-amber-300"
+                            >
+                              View pricing →
+                            </a>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* CPU Selection */}
+                {keyValidated && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="space-y-3"
+                  >
+                    <label className="text-sm font-medium text-sam-text flex items-center gap-2">
+                      <Server className="w-4 h-4 text-sam-accent" />
+                      CPU Cores
+                    </label>
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      {orgoCPUOptions.map((option) => (
+                        <button
+                          key={option.id}
+                          onClick={() => setSelectedOrgoCPU(option.id)}
+                          className={`p-2.5 rounded-lg border text-left transition-all ${
+                            selectedOrgoCPU === option.id
+                              ? 'border-sam-accent bg-sam-accent/10'
+                              : 'border-sam-border hover:border-sam-accent/50 hover:bg-sam-bg'
+                          }`}
+                        >
+                          <div className="text-sam-text font-medium text-sm">{option.name}</div>
+                          <div className="text-[10px] text-sam-text-dim">
+                            {option.description}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
               {/* Modal Footer */}
-              <div className="p-6 border-t border-sam-border flex justify-end gap-3">
+              <div className="p-6 border-t border-sam-border flex justify-end gap-3 sticky bottom-0 bg-sam-surface">
                 <button
                   onClick={closeOrgoModal}
                   className="px-5 py-2.5 rounded-lg border border-sam-border text-sam-text-dim hover:text-sam-text hover:border-sam-accent/50 font-medium text-sm transition-colors"
@@ -1274,6 +1416,11 @@ export default function SelectVMPage() {
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
                       Adding VM...
+                    </>
+                  ) : !orgoRAMOptions.find(opt => opt.id === selectedOrgoRAM)?.freeTier ? (
+                    <>
+                      Upgrade Plan
+                      <ExternalLink className="w-4 h-4" />
                     </>
                   ) : (
                     <>

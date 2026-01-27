@@ -155,6 +155,8 @@ export async function POST(request: NextRequest) {
         vmId // Pass vmId
       ).catch(console.error)
     } else {
+      // Type assertion to access Orgo-specific fields (TypeScript may have stale types cached)
+      const orgoVM = vm as (typeof vm & { orgoRam?: number; orgoCpu?: number }) | null
       runSetupProcess(
         session.user.id,
         claudeApiKey,
@@ -162,7 +164,9 @@ export async function POST(request: NextRequest) {
         vm?.orgoProjectName || setupState.orgoProjectName || 'claude-brain',
         telegramBotToken,
         telegramUserId,
-        vmId // Pass vmId
+        vmId, // Pass vmId
+        orgoVM?.orgoRam || 4, // Pass RAM (default 4 GB)
+        orgoVM?.orgoCpu || 2  // Pass CPU (default 2 cores)
       ).catch(console.error)
     }
 
@@ -189,7 +193,9 @@ async function runSetupProcess(
   projectName: string,
   telegramBotToken?: string,
   telegramUserId?: string,
-  vmId?: string
+  vmId?: string,
+  orgoRam: number = 4,
+  orgoCpu: number = 2
 ) {
   const updateStatus = async (updates: Partial<{
     status: string
@@ -222,6 +228,7 @@ async function runSetupProcess(
       if (updates.repoCloned !== undefined) vmUpdates.repoCloned = updates.repoCloned
       if (updates.gitSyncConfigured !== undefined) vmUpdates.gitSyncConfigured = updates.gitSyncConfigured
       if (updates.clawdbotInstalled !== undefined) vmUpdates.clawdbotInstalled = updates.clawdbotInstalled
+      if (updates.telegramConfigured !== undefined) vmUpdates.telegramConfigured = updates.telegramConfigured
       if (updates.gatewayStarted !== undefined) vmUpdates.gatewayStarted = updates.gatewayStarted
       if (updates.orgoProjectId !== undefined) vmUpdates.orgoProjectId = updates.orgoProjectId
       if (updates.orgoComputerId !== undefined) vmUpdates.orgoComputerId = updates.orgoComputerId
@@ -294,8 +301,8 @@ async function runSetupProcess(
         const projectIdOrName = project.id || project.name
         computer = await orgoClient.createComputer(projectIdOrName, computerName, {
           os: 'linux',
-          ram: 4,
-          cpu: 2,
+          ram: orgoRam as 1 | 2 | 4 | 8 | 16 | 32 | 64,
+          cpu: orgoCpu as 1 | 2 | 4 | 8 | 16,
         })
         
         // If we didn't have a project ID, update it from the created computer's project info
@@ -601,7 +608,7 @@ These repositories are cloned in the \`~/repositories/\` directory on the VM and
 `
 
       await githubClient.writeFileToVault(
-        setupState.vaultRepoName,
+        setupState.vaultRepoName!,
         'integrations/github/repositories.md',
         reposContent,
         'Add GitHub repositories as data sources'
@@ -680,6 +687,7 @@ async function runAWSSetupProcess(
       if (updates.repoCloned !== undefined) vmUpdates.repoCloned = updates.repoCloned
       if (updates.gitSyncConfigured !== undefined) vmUpdates.gitSyncConfigured = updates.gitSyncConfigured
       if (updates.clawdbotInstalled !== undefined) vmUpdates.clawdbotInstalled = updates.clawdbotInstalled
+      if (updates.telegramConfigured !== undefined) vmUpdates.telegramConfigured = updates.telegramConfigured
       if (updates.gatewayStarted !== undefined) vmUpdates.gatewayStarted = updates.gatewayStarted
       if (updates.awsInstanceId !== undefined) vmUpdates.awsInstanceId = updates.awsInstanceId
       if (updates.awsInstanceName !== undefined) vmUpdates.awsInstanceName = updates.awsInstanceName
@@ -961,6 +969,7 @@ async function runE2BSetupProcess(
       if (updates.repoCloned !== undefined) vmUpdates.repoCloned = updates.repoCloned
       if (updates.gitSyncConfigured !== undefined) vmUpdates.gitSyncConfigured = updates.gitSyncConfigured
       if (updates.clawdbotInstalled !== undefined) vmUpdates.clawdbotInstalled = updates.clawdbotInstalled
+      if (updates.telegramConfigured !== undefined) vmUpdates.telegramConfigured = updates.telegramConfigured
       if (updates.gatewayStarted !== undefined) vmUpdates.gatewayStarted = updates.gatewayStarted
       if (updates.errorMessage !== undefined) vmUpdates.errorMessage = updates.errorMessage
       

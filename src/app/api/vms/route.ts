@@ -67,6 +67,8 @@ export async function POST(request: NextRequest) {
       // Orgo specific
       orgoProjectId,
       orgoProjectName,
+      orgoRam,
+      orgoCpu,
       // AWS specific
       awsInstanceType,
       awsRegion,
@@ -93,6 +95,8 @@ export async function POST(request: NextRequest) {
         // Orgo specific
         orgoProjectId,
         orgoProjectName,
+        orgoRam,
+        orgoCpu,
         // AWS specific
         awsInstanceType,
         awsRegion,

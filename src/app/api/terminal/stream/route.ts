@@ -7,7 +7,7 @@
 import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
-import { sessionOutputBuffers } from '../connect/route'
+import { sessionOutputBuffers } from '@/lib/terminal/session-buffers'
 
 export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions)

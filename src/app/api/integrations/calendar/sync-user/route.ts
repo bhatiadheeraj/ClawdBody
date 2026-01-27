@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
         : `integrations/calendar/new-events-${syncTimestamp}-${index + 1}.md`
 
       return githubClient.writeFileToVault(
-        setupState.vaultRepoName,
+        setupState.vaultRepoName!,
         fileName,
         `# New Google Calendar Events (Sync: ${new Date().toISOString()})
 
@@ -142,7 +142,7 @@ ${eventsContent}
     // Update the sync log
     try {
       const syncLogPath = 'integrations/calendar/sync-log.md'
-      const existingLog = await githubClient.readFileFromVault(setupState.vaultRepoName, syncLogPath)
+      const existingLog = await githubClient.readFileFromVault(setupState.vaultRepoName!, syncLogPath)
       
       const syncEntry = `- **${new Date().toISOString()}**: ${newEvents.length} new events synced (${batches.length} file${batches.length > 1 ? 's' : ''} created)`
       
@@ -165,7 +165,7 @@ ${syncEntry}
 `
 
       await githubClient.writeFileToVault(
-        setupState.vaultRepoName,
+        setupState.vaultRepoName!,
         syncLogPath,
         newLogContent,
         'Update calendar sync log'

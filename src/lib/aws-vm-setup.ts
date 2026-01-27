@@ -607,15 +607,62 @@ BASHEOF`,
    * Start the Clawdbot gateway as a background process
    */
   async startClawdbotGateway(claudeApiKey: string, telegramBotToken: string): Promise<boolean> {
+    // Create startup script with better error handling (same as Orgo version)
     const startupScript = `#!/bin/bash
+# Don't use set -e, we want to log errors
+
+# Source bashrc to get environment
 source ~/.bashrc 2>/dev/null || true
+
+# Setup NVM
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+# Set environment variables
 export ANTHROPIC_API_KEY="${claudeApiKey}"
 export TELEGRAM_BOT_TOKEN="${telegramBotToken}"
+
+# Log startup
 LOG_FILE="/tmp/clawdbot.log"
-echo "[$(date)] Starting Clawdbot gateway..." >> "$LOG_FILE"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Starting Clawdbot gateway..." >> "$LOG_FILE"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] NVM_DIR: $NVM_DIR" >> "$LOG_FILE"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Node version: $(node -v 2>&1 || echo 'node not found')" >> "$LOG_FILE"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] PATH: $PATH" >> "$LOG_FILE"
+
+# Check if clawdbot is available
+if ! command -v clawdbot &> /dev/null; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: clawdbot command not found" >> "$LOG_FILE"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Checking NVM..." >> "$LOG_FILE"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Node path: $(which node || echo 'node not in PATH')" >> "$LOG_FILE"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Clawdbot path: $(find ~/.nvm -name clawdbot 2>/dev/null | head -1 || echo 'clawdbot not found')" >> "$LOG_FILE"
+    exit 1
+fi
+
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Clawdbot found: $(which clawdbot)" >> "$LOG_FILE"
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Running: clawdbot gateway run" >> "$LOG_FILE"
+if [ -n "$ANTHROPIC_API_KEY" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ANTHROPIC_API_KEY: SET" >> "$LOG_FILE"
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ANTHROPIC_API_KEY: NOT SET" >> "$LOG_FILE"
+fi
+if [ -n "$TELEGRAM_BOT_TOKEN" ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] TELEGRAM_BOT_TOKEN: SET" >> "$LOG_FILE"
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] TELEGRAM_BOT_TOKEN: NOT SET" >> "$LOG_FILE"
+fi
+
+# Check config file exists
+if [ -f ~/.clawdbot/clawdbot.json ]; then
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] Config file exists" >> "$LOG_FILE"
+else
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] WARNING: Config file not found at ~/.clawdbot/clawdbot.json" >> "$LOG_FILE"
+fi
+
+# Run gateway and capture all output (both stdout and stderr)
 clawdbot gateway run >> "$LOG_FILE" 2>&1
+EXIT_CODE=$?
+echo "[$(date +'%Y-%m-%d %H:%M:%S')] Gateway exited with code: $EXIT_CODE" >> "$LOG_FILE"
+exit $EXIT_CODE
 `
 
     const scriptB64 = Buffer.from(startupScript).toString('base64')
@@ -631,23 +678,59 @@ clawdbot gateway run >> "$LOG_FILE" 2>&1
 
     // Start gateway in background
     await this.runCommand(
-      'nohup /tmp/start-clawdbot.sh >> /tmp/clawdbot.log 2>&1 &',
+      'nohup /tmp/start-clawdbot.sh >> /tmp/clawdbot.log 2>&1 & echo $!',
       'Start Clawdbot gateway'
     )
 
     await new Promise(resolve => setTimeout(resolve, 8000))
 
-    // Check if running
+    // Check if running (with retries and port verification)
+    let isRunning = false
+    for (let attempt = 0; attempt < 5; attempt++) {
+      // Check if process exists
     const processCheck = await this.runCommand(
-      "pgrep -f 'clawdbot gateway' > /dev/null && echo 'RUNNING' || echo 'NOT_RUNNING'",
+        "pgrep -f 'clawdbot gateway' > /dev/null && echo 'PROCESS_EXISTS' || echo 'NO_PROCESS'",
       'Check gateway process'
     )
 
-    const isRunning = processCheck.output.includes('RUNNING')
+      const hasProcess = processCheck.output.includes('PROCESS_EXISTS')
+      
+      if (hasProcess) {
+        // Also verify port is listening (more reliable check)
+        const portCheck = await this.runCommand(
+          "netstat -tlnp 2>/dev/null | grep 18789 > /dev/null || ss -tlnp 2>/dev/null | grep 18789 > /dev/null && echo 'PORT_LISTENING' || echo 'PORT_NOT_LISTENING'",
+          'Check gateway port'
+        )
+        
+        if (portCheck.output.includes('PORT_LISTENING')) {
+          isRunning = true
+          break
+        } else {
+          // Process exists but port not listening yet - wait longer
+          console.log(`Gateway process exists but port not listening yet (attempt ${attempt + 1}/5)`)
+        }
+      }
+      
+      // Wait before next check
+      if (attempt < 4) {
+        await new Promise(resolve => setTimeout(resolve, 5000))
+      }
+    }
+
+    // If not running, check the log for errors
+    if (!isRunning) {
+      const logCheck = await this.runCommand(
+        'tail -20 /tmp/clawdbot.log 2>/dev/null || echo "No log file"',
+        'Check gateway logs'
+      )
+      console.log('Gateway startup log:', logCheck.output)
+    }
 
     this.onProgress?.({
       step: 'Start Gateway',
-      message: isRunning ? 'Clawdbot gateway is running' : 'Gateway failed to start',
+      message: isRunning 
+        ? 'Clawdbot gateway is running' 
+        : 'Gateway failed to start. Check /tmp/clawdbot.log for errors.',
       success: isRunning,
     })
 

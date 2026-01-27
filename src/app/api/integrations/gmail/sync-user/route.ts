@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
         : `integrations/gmail/new-messages-${syncTimestamp}-${index + 1}.md`
 
       return githubClient.writeFileToVault(
-        setupState.vaultRepoName,
+        setupState.vaultRepoName!,
         fileName,
         `# New Gmail Messages (Sync: ${new Date().toISOString()})
 
@@ -144,7 +144,7 @@ ${messagesContent}
     // Update the sync log
     try {
       const syncLogPath = 'integrations/gmail/sync-log.md'
-      const existingLog = await githubClient.readFileFromVault(setupState.vaultRepoName, syncLogPath)
+      const existingLog = await githubClient.readFileFromVault(setupState.vaultRepoName!, syncLogPath)
       
       const syncEntry = `- **${new Date().toISOString()}**: ${newMessages.length} new messages synced (${batches.length} file${batches.length > 1 ? 's' : ''} created)`
       
@@ -167,7 +167,7 @@ ${syncEntry}
 `
 
       await githubClient.writeFileToVault(
-        setupState.vaultRepoName,
+        setupState.vaultRepoName!,
         syncLogPath,
         newLogContent,
         'Update Gmail sync log'

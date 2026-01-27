@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
 
       // Write to vault
       await githubClient.writeFileToVault(
-        setupState.vaultRepoName,
+        setupState.vaultRepoName!,
         'integrations/calendar/events.md',
         `# Google Calendar Events
 

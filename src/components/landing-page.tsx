@@ -34,7 +34,7 @@ export function LandingPage() {
             className="mb-6 flex flex-col items-center gap-4"
           >
             <img 
-              src="/logos/ClawdBrain.png" 
+              src="/logos/ClawdBody.png" 
               alt="ClawdBody" 
               className="h-28 sm:h-32 lg:h-40 object-contain"
             />

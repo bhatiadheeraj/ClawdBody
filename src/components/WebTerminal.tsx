@@ -410,7 +410,7 @@ export function WebTerminal({
         <div className="flex items-center gap-2">
           {connectionState === 'disconnected' || connectionState === 'error' ? (
             <button
-              onClick={connect}
+              onClick={() => connect()}
               className="p-1.5 rounded hover:bg-[#32344a] text-[#7aa2f7] transition-colors"
               title="Connect"
             >
@@ -454,7 +454,7 @@ export function WebTerminal({
             <Terminal className="w-12 h-12 text-[#7aa2f7] mb-4" />
             <p className="text-[#a9b1d6] mb-4">Terminal disconnected</p>
             <button
-              onClick={connect}
+              onClick={() => connect()}
               className="px-4 py-2 rounded-lg bg-[#7aa2f7] text-[#1a1b26] font-medium hover:bg-[#7da6ff] transition-colors"
             >
               Connect
@@ -483,7 +483,7 @@ export function WebTerminal({
             <p className="text-[#f7768e] mb-2">Connection Error</p>
             <p className="text-[#787c99] text-sm mb-4">{error}</p>
             <button
-              onClick={connect}
+              onClick={() => connect()}
               className="px-4 py-2 rounded-lg bg-[#7aa2f7] text-[#1a1b26] font-medium hover:bg-[#7da6ff] transition-colors"
             >
               Retry

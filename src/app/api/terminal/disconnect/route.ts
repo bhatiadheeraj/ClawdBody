@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { getSessionManager } from '@/lib/terminal'
-import { sessionOutputBuffers } from '../connect/route'
+import { sessionOutputBuffers } from '@/lib/terminal/session-buffers'
 
 export async function POST(request: NextRequest) {
   try {

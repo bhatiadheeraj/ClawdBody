@@ -249,7 +249,7 @@ async function handleGmailCallback(request: NextRequest, userId: string, code: s
           : `integrations/gmail/messages-${index + 1}.md`
 
         return githubClient.writeFileToVault(
-          setupState.vaultRepoName,
+          setupState.vaultRepoName!,
           fileName,
           `# Gmail Messages (Batch ${index + 1} of ${batches.length})
 

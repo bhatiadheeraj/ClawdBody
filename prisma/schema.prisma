@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Account {
@@ -128,6 +129,8 @@ model VM {
   orgoProjectName String?
   orgoComputerId  String?
   orgoComputerUrl String?
+  orgoRam         Int?     @default(4)  // RAM in GB: 1, 2, 4, 8, 16, 32, or 64
+  orgoCpu         Int?     @default(2)  // CPU cores: 1, 2, 4, 8, or 16
 
   // AWS specific fields
   awsInstanceId   String?
@@ -153,6 +156,7 @@ model VM {
   repoCloned         Boolean @default(false)
   gitSyncConfigured  Boolean @default(false)
   clawdbotInstalled  Boolean @default(false)
+  telegramConfigured Boolean @default(false)
   gatewayStarted     Boolean @default(false)
 
   errorMessage String?

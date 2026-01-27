@@ -22,7 +22,7 @@ export class GmailClient {
     })
 
     // Set up token refresh handler
-    this.oauth2Client.on('tokens', (tokens) => {
+    this.oauth2Client.on('tokens', (tokens: { refresh_token?: string; access_token?: string }) => {
       if (tokens.refresh_token) {
         // Refresh token is only provided on first authorization
         // Store it if provided
@@ -106,7 +106,7 @@ export class GmailClient {
           break
         }
 
-        const response = await this.gmail.users.messages.list({
+        const response: Awaited<ReturnType<typeof this.gmail.users.messages.list>> = await this.gmail.users.messages.list({
           userId: 'me',
           maxResults: currentBatchSize,
           pageToken,
@@ -191,7 +191,7 @@ export class GmailClient {
           break
         }
 
-        const response = await this.gmail.users.messages.list({
+        const response: Awaited<ReturnType<typeof this.gmail.users.messages.list>> = await this.gmail.users.messages.list({
           userId: 'me',
           maxResults: currentBatchSize,
           pageToken,

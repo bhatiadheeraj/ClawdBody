@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
       // Write to vault
       await githubClient.writeFileToVault(
-        setupState.vaultRepoName,
+        setupState.vaultRepoName!,
         'integrations/gmail/messages.md',
         `# Gmail Messages
 

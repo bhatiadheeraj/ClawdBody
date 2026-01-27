@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useSession, signOut } from 'next-auth/react'
 import { motion } from 'framer-motion'
 import { Mail, Calendar, MessageSquare, FileText, MessageCircle, Bot, Video, Phone, Loader2, RefreshCw, Check, Key, AlertCircle, ArrowRight, ExternalLink, LogOut, Github, X, Server, GitBranch, Terminal, CheckCircle2, ChevronDown, ChevronUp, Trash2, XCircle, Monitor } from 'lucide-react'
@@ -227,7 +228,7 @@ function generateContextMessage(connectedSources: Set<string>): string {
   return `Now I understand ${combined}.`
 }
 
-export default function LearningSourcesPage() {
+function LearningSourcesContent() {
   const { data: session } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -580,7 +581,7 @@ export default function LearningSourcesPage() {
             className="flex items-center gap-4"
           >
             <img 
-              src="/logos/ClawdBrain.png" 
+              src="/logos/ClawdBody.png" 
               alt="ClawdBody" 
               className="h-16 md:h-20 object-contain"
             />
@@ -603,16 +604,17 @@ export default function LearningSourcesPage() {
                 <span className="text-sam-text-dim">({currentVM.provider})</span>
               </motion.div>
             )}
-            <motion.button
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0.05 }}
-              onClick={() => router.push('/select-vm')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-sam-border hover:border-sam-accent/50 text-sam-text-dim hover:text-sam-accent transition-all"
-            >
-              <Monitor className="w-4 h-4" />
-              <span className="text-sm font-mono">Manage VMs</span>
-            </motion.button>
+            <Link href="/select-vm" prefetch={true}>
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.05 }}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-sam-border hover:border-sam-accent/50 text-sam-text-dim hover:text-sam-accent transition-all cursor-pointer"
+              >
+                <Monitor className="w-4 h-4" />
+                <span className="text-sm font-mono">Manage VMs</span>
+              </motion.div>
+            </Link>
             <motion.button
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -1328,7 +1330,10 @@ function SetupProgressView({
 
     return () => clearInterval(interval)
   }, [setupStatus?.orgoComputerId, setupStatus?.vmCreated])
-  const steps = [
+  // Determine if Telegram was configured (either completed or in progress)
+  const hasTelegramSetup = setupStatus?.telegramConfigured || setupStatus?.gatewayStarted
+  
+  const allSteps = [
     { 
       id: 'provisioning', 
       label: 'Provisioning VM', 
@@ -1338,21 +1343,50 @@ function SetupProgressView({
     },
     { 
       id: 'creating_repo', 
-      label: 'Creating Vault Repo', 
+      // Show "Verifying" if quick check, "Creating" if actually creating new repo
+      label: setupStatus?.status === 'creating_repo' ? 'Creating Vault Repo' : 'Verifying Vault Repo', 
       icon: GitBranch,
       check: () => setupStatus?.repoCreated || false,
       active: () => setupStatus?.status === 'creating_repo' || (setupStatus?.status === 'configuring_vm' && !setupStatus?.repoCreated)
     },
     { 
-      id: 'configuring_vm', 
-      label: 'Configuring VM', 
+      id: 'cloning_repo', 
+      label: 'Cloning Repository', 
+      icon: GitBranch,
+      check: () => setupStatus?.repoCloned || false,
+      active: () => setupStatus?.status === 'configuring_vm' && setupStatus?.repoCreated && !setupStatus?.repoCloned
+    },
+    { 
+      id: 'git_sync', 
+      label: 'Configuring Git Sync', 
+      icon: RefreshCw,
+      check: () => setupStatus?.gitSyncConfigured || false,
+      active: () => setupStatus?.status === 'configuring_vm' && setupStatus?.repoCloned && !setupStatus?.gitSyncConfigured
+    },
+    { 
+      id: 'clawdbot', 
+      label: 'Installing Clawdbot', 
+      icon: Bot,
+      check: () => setupStatus?.clawdbotInstalled || false,
+      active: () => setupStatus?.status === 'configuring_vm' && setupStatus?.gitSyncConfigured && !setupStatus?.clawdbotInstalled
+    },
+    { 
+      id: 'telegram', 
+      label: 'Configuring Telegram', 
+      icon: MessageCircle,
+      check: () => setupStatus?.telegramConfigured || false,
+      active: () => setupStatus?.status === 'configuring_vm' && setupStatus?.clawdbotInstalled && !setupStatus?.telegramConfigured && !setupStatus?.gatewayStarted,
+      optional: true,
+      show: () => hasTelegramSetup || (setupStatus?.status === 'configuring_vm' && setupStatus?.clawdbotInstalled)
+    },
+    { 
+      id: 'gateway', 
+      label: 'Starting Gateway', 
       icon: Terminal,
-      check: () => setupStatus?.status === 'ready',
-      active: () => setupStatus?.status === 'configuring_vm',
-      subSteps: [
-        { label: 'Clone repository', check: () => setupStatus?.repoCloned || false },
-        { label: 'Configure Git sync', check: () => setupStatus?.gitSyncConfigured || false },
-      ]
+      check: () => setupStatus?.gatewayStarted || false,
+      active: () => setupStatus?.status === 'configuring_vm' && setupStatus?.clawdbotInstalled && setupStatus?.telegramConfigured && !setupStatus?.gatewayStarted,
+      optional: true,
+      show: () => hasTelegramSetup || (setupStatus?.status === 'configuring_vm' && setupStatus?.telegramConfigured)
     },
     { 
       id: 'complete', 
@@ -1362,6 +1396,14 @@ function SetupProgressView({
       active: () => setupStatus?.status === 'ready'
     },
   ]
+  
+  // Filter to only show relevant steps
+  const steps = allSteps.filter(step => {
+    if ('show' in step && typeof step.show === 'function') {
+      return step.show()
+    }
+    return true
+  })
 
   const getStepStatus = (step: typeof steps[0]) => {
     if (step.check()) return 'complete'
@@ -1369,10 +1411,16 @@ function SetupProgressView({
     return 'pending'
   }
 
+  // Calculate progress based on completed steps (excluding optional ones if not started)
+  const completedSteps = steps.filter(s => s.check()).length
   const currentStepIndex = steps.findIndex(s => s.active())
-  const progressPercentage = currentStepIndex >= 0 
-    ? ((currentStepIndex + 1) / steps.length) * 100
-    : setupStatus?.status === 'ready' ? 100 : 0
+  const progressPercentage = setupStatus?.status === 'ready' 
+    ? 100 
+    : currentStepIndex >= 0 
+      ? Math.round(((completedSteps) / steps.length) * 100)
+      : completedSteps > 0 
+        ? Math.round((completedSteps / steps.length) * 100)
+        : 0
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1520,21 +1568,8 @@ function SetupProgressView({
                   }`}>
                     {step.label}
                   </h3>
-                  {step.subSteps && (isActive || isComplete) && (
-                    <div className="mt-2 space-y-1 ml-12">
-                      {step.subSteps.map((subStep, subIndex) => (
-                        <div key={subIndex} className="flex items-center gap-2 text-sm">
-                          {subStep.check() ? (
-                            <Check className="w-3 h-3 text-green-500" />
-                          ) : (
-                            <div className="w-3 h-3 rounded-full border border-sam-border" />
-                          )}
-                          <span className={subStep.check() ? 'text-sam-text' : 'text-sam-text-dim'}>
-                            {subStep.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  {'optional' in step && step.optional && !isComplete && !isActive && (
+                    <span className="text-xs text-sam-text-dim">(optional)</span>
                   )}
                 </div>
               </div>
@@ -2014,6 +2049,7 @@ function ComputerConnectedView({
                           body: JSON.stringify({
                             telegramBotToken: telegramBotToken.trim(),
                             telegramUserId: telegramUserId.trim() || undefined,
+                            vmId: vmId || undefined,
                           }),
                         })
                         if (!res.ok) {
@@ -2094,3 +2130,14 @@ function ComputerConnectedView({
   )
 }
 
+export default function LearningSourcesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-[#0a0a0f] via-[#0f0f1a] to-[#1a1a2e] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+      </div>
+    }>
+      <LearningSourcesContent />
+    </Suspense>
+  )
+}

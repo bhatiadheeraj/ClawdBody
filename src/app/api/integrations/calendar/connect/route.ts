@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
             : `integrations/calendar/events-${index + 1}.md`
 
           return githubClient.writeFileToVault(
-            setupState.vaultRepoName,
+            setupState.vaultRepoName!,
             fileName,
             `# Google Calendar Events (Batch ${index + 1} of ${batches.length})
 
@@ -96,7 +96,7 @@ ${eventsContent}
 
         // Create an index file
         await githubClient.writeFileToVault(
-          setupState.vaultRepoName,
+          setupState.vaultRepoName!,
           'integrations/calendar/index.md',
           `# Google Calendar Integration
 

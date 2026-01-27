@@ -12,6 +12,7 @@ import { prisma } from '@/lib/prisma'
 import { getSessionManager, SSHTerminalProvider } from '@/lib/terminal'
 import type { SSHConfig } from '@/lib/terminal'
 import type { SetupState } from '@prisma/client'
+import { sessionOutputBuffers } from '@/lib/terminal/session-buffers'
 
 // Extended type for AWS fields
 type AWSSetupState = SetupState & {
@@ -24,9 +25,6 @@ type AWSSetupState = SetupState & {
   awsPublicIp?: string | null
   awsPrivateKey?: string | null
 }
-
-// Store active sessions with their output buffers
-const sessionOutputBuffers = new Map<string, string[]>()
 
 export async function POST(request: NextRequest) {
   try {
@@ -171,5 +169,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Export the buffer accessor for the stream endpoint
-export { sessionOutputBuffers }

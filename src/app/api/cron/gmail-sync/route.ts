@@ -1,19 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-/**
- * Cron job endpoint for Gmail sync
- * This route is designed to be called by Vercel Cron or similar services
- * 
- * To set up with Vercel Cron, add to vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/gmail-sync",
- *     "schedule": "0 */12 * * *"
- *   }]
- * }
- * 
- * For other platforms, set up a cron job to call this endpoint every 12 hours
- */
+// Cron job endpoint for Gmail sync
+// This route is designed to be called by Vercel Cron or similar services
+// 
+// To set up with Vercel Cron, add to vercel.json:
+// { "crons": [{ "path": "/api/cron/gmail-sync", "schedule": "0 0 * * *" }] }
+// 
+// For other platforms, set up a cron job to call this endpoint daily
 export async function GET(request: NextRequest) {
   try {
     // Verify this is a cron request (Vercel adds this header)

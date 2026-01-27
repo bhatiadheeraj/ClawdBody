@@ -175,7 +175,7 @@ These repositories are cloned in the \`~/repositories/\` directory on the VM and
 `
 
     await githubClient.writeFileToVault(
-      setupState.vaultRepoName,
+      setupState.vaultRepoName!,
       'integrations/github/repositories.md',
       reposContent,
       'Add GitHub repositories as data sources'
