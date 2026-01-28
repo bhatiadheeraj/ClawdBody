@@ -113,16 +113,36 @@ export async function POST(request: NextRequest) {
     }
 
     // Create terminal provider
+    console.log(`[Terminal Connect] Attempting SSH connection to ${sshConfig.host}:${sshConfig.port}`)
     const provider = new SSHTerminalProvider(sshConfig)
     
-    // Connect
-    const connected = await provider.connect()
-    if (!connected) {
+    // Connect with timeout
+    const connectTimeout = 30000 // 30 seconds
+    const connectPromise = provider.connect()
+    const timeoutPromise = new Promise<boolean>((_, reject) => 
+      setTimeout(() => reject(new Error('SSH connection timeout after 30 seconds')), connectTimeout)
+    )
+    
+    let connected: boolean
+    try {
+      connected = await Promise.race([connectPromise, timeoutPromise])
+    } catch (timeoutError) {
+      console.error(`[Terminal Connect] Connection timeout to ${sshConfig.host}`)
       return NextResponse.json(
-        { error: 'Failed to connect to VM' },
+        { error: 'SSH connection timeout. The EC2 instance may be stopped or unreachable.' },
+        { status: 504 }
+      )
+    }
+    
+    if (!connected) {
+      console.error(`[Terminal Connect] Failed to connect to ${sshConfig.host}`)
+      return NextResponse.json(
+        { error: 'Failed to connect to VM. Check if the EC2 instance is running and SSH port 22 is open.' },
         { status: 500 }
       )
     }
+    
+    console.log(`[Terminal Connect] Successfully connected to ${sshConfig.host}`)
 
     // Initialize output buffer for this session
     sessionOutputBuffers.set(sessionId, [])

@@ -1034,6 +1034,45 @@ export default function SelectVMPage() {
               )
             })}
           </div>
+
+          {/* Custom Provider Card - Full Width */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="relative mt-6 p-6 rounded-xl border-2 bg-gradient-to-br from-sam-surface/40 to-sam-surface/20 hover:from-sam-surface/50 hover:to-sam-surface/30 transition-all duration-300"
+            style={{
+              borderImage: 'linear-gradient(135deg, rgba(244, 114, 182, 0.3), rgba(139, 92, 246, 0.3), rgba(59, 130, 246, 0.3)) 1',
+            }}
+          >
+            {/* Gradient border effect */}
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-blue-500/20 opacity-50 blur-sm -z-10" />
+            
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex-1 text-center md:text-left">
+                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
+                  <Plus className="w-5 h-5 text-sam-accent" />
+                  <h3 className="text-xl font-display font-semibold text-sam-text">
+                    Add Your Own VM Provider
+                  </h3>
+                </div>
+                <p className="text-sm text-sam-text-dim font-body leading-relaxed mb-2">
+                  Have a preferred cloud provider? Our AI agents can build a native integration for your VM provider in minutes, seamlessly connecting it to ClawdBody.
+                </p>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sam-accent/10 border border-sam-accent/30">
+                  <span className="text-xs font-mono text-sam-accent">🚀 Marketplace Coming Soon</span>
+                </div>
+              </div>
+              <div className="flex-shrink-0">
+                <button
+                  disabled
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-blue-500/20 border border-sam-border text-sam-text-dim font-medium hover:border-sam-accent/50 transition-all cursor-not-allowed opacity-60"
+                >
+                  Coming Soon
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </motion.div>
 
         {/* Continue Button */}

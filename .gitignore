@@ -12,12 +12,15 @@ dist/
 # Database
 *.db
 *.db-journal
-prisma/migrations/
+# prisma/migrations/ - Now tracking migrations for production deployments
 
 # Environment
 .env
+.env*
 .env*.local
 .env.local_deploy
+.env.backup
+.env.local_vercel
 
 # IDE
 .idea/
