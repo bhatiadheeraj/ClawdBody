@@ -847,7 +847,7 @@ function LearningSourcesContent() {
             Connect your sources
           </h1>
           <p className="text-lg text-sam-text-dim max-w-3xl font-body leading-relaxed">
-          Each source becomes structured context the AI agent uses to infer and execute tasks. Your private data lives securely in your private GitHub repository.
+          Your context lives securely in your private GitHub repository. This is shared across VMs to infer and execute tasks.
           </p>
         </motion.div>
 
