@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OrgoClient, generateComputerName } from '@/lib/orgo'
+import { decrypt } from '@/lib/encryption'
 
 /**
  * Create a new Orgo project
@@ -36,7 +37,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    const orgoClient = new OrgoClient(setupState.orgoApiKey)
+    // Decrypt the stored API key
+    const orgoClient = new OrgoClient(decrypt(setupState.orgoApiKey))
 
     // Check if project already exists
     const projects = await orgoClient.listProjects()

@@ -8,6 +8,7 @@ import { E2BClient } from '@/lib/e2b'
 import { VMSetup } from '@/lib/vm-setup'
 import { AWSVMSetup } from '@/lib/aws-vm-setup'
 import { E2BVMSetup } from '@/lib/e2b-vm-setup'
+import { decrypt } from '@/lib/encryption'
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,11 +29,12 @@ export async function POST(request: NextRequest) {
       where: { userId: session.user.id },
     })
 
-    // Get Claude API key from setup state
-    const claudeApiKey = setupState?.claudeApiKey
-    if (!claudeApiKey) {
+    // Get Claude API key from setup state and decrypt
+    const claudeApiKeyEncrypted = setupState?.claudeApiKey
+    if (!claudeApiKeyEncrypted) {
       return NextResponse.json({ error: 'Claude API key not found' }, { status: 400 })
     }
+    const claudeApiKey = decrypt(claudeApiKeyEncrypted)
 
     // If vmId is provided, configure that specific VM
     if (vmId) {
@@ -58,15 +60,16 @@ export async function POST(request: NextRequest) {
 
       // Handle based on provider
       if (vm.provider === 'orgo') {
-        const orgoApiKey = setupState?.orgoApiKey
-        if (!orgoApiKey) {
+        const orgoApiKeyEncrypted = setupState?.orgoApiKey
+        if (!orgoApiKeyEncrypted) {
           return NextResponse.json({ error: 'Orgo API key not found' }, { status: 400 })
         }
         if (!vm.orgoComputerId) {
           return NextResponse.json({ error: 'Orgo computer ID not found' }, { status: 400 })
         }
 
-        const orgoClient = new OrgoClient(orgoApiKey)
+        // Decrypt the stored API key
+        const orgoClient = new OrgoClient(decrypt(orgoApiKeyEncrypted))
         const vmSetup = new VMSetup(orgoClient, vm.orgoComputerId)
 
         telegramSuccess = await vmSetup.setupClawdbotTelegram({
@@ -90,16 +93,18 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: 'AWS instance not ready' }, { status: 400 })
         }
 
+        // Decrypt stored AWS credentials
         const awsClient = new AWSClient({
-          accessKeyId: awsState.awsAccessKeyId,
-          secretAccessKey: awsState.awsSecretAccessKey,
+          accessKeyId: decrypt(awsState.awsAccessKeyId),
+          secretAccessKey: decrypt(awsState.awsSecretAccessKey),
           region: vm.awsRegion || 'us-east-1',
         })
 
+        // Decrypt stored private key
         const awsVMSetup = new AWSVMSetup(
           awsClient,
           vm.awsInstanceId!,
-          vm.awsPrivateKey,
+          decrypt(vm.awsPrivateKey),
           vm.awsPublicIp
         )
 
@@ -117,15 +122,16 @@ export async function POST(request: NextRequest) {
 
         awsVMSetup.cleanup()
       } else if (vm.provider === 'e2b') {
-        const e2bApiKey = (setupState as any)?.e2bApiKey
-        if (!e2bApiKey) {
+        const e2bApiKeyEncrypted = (setupState as any)?.e2bApiKey
+        if (!e2bApiKeyEncrypted) {
           return NextResponse.json({ error: 'E2B API key not found' }, { status: 400 })
         }
         if (!vm.e2bSandboxId) {
           return NextResponse.json({ error: 'E2B sandbox ID not found' }, { status: 400 })
         }
 
-        const e2bClient = new E2BClient(e2bApiKey)
+        // Decrypt the stored API key
+        const e2bClient = new E2BClient(decrypt(e2bApiKeyEncrypted))
         const sandbox = await e2bClient.connectToSandbox(vm.e2bSandboxId)
         const e2bVMSetup = new E2BVMSetup(e2bClient, sandbox, vm.e2bSandboxId)
 
@@ -185,8 +191,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'VM setup is not complete yet' }, { status: 400 })
     }
 
-    const orgoApiKey = setupState.orgoApiKey
-    if (!orgoApiKey) {
+    const orgoApiKeyEncrypted = setupState.orgoApiKey
+    if (!orgoApiKeyEncrypted) {
       return NextResponse.json({ error: 'Orgo API key not found' }, { status: 400 })
     }
 
@@ -194,7 +200,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Clawdbot is not installed. Please complete setup first.' }, { status: 400 })
     }
 
-    const orgoClient = new OrgoClient(orgoApiKey)
+    // Decrypt the stored API key
+    const orgoClient = new OrgoClient(decrypt(orgoApiKeyEncrypted))
     const vmSetup = new VMSetup(orgoClient, setupState.orgoComputerId)
 
     // Get Clawdbot version from VM

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OrgoClient } from '@/lib/orgo'
+import { encrypt, decrypt } from '@/lib/encryption'
 
 /**
  * Validate Orgo API key and return available projects
@@ -31,7 +32,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No stored Orgo API key found' }, { status: 400 })
       }
       
-      keyToUse = setupState.orgoApiKey
+      // Decrypt the stored key
+      keyToUse = decrypt(setupState.orgoApiKey)
     }
 
     if (!keyToUse || typeof keyToUse !== 'string') {
@@ -44,17 +46,17 @@ export async function POST(request: NextRequest) {
     try {
       const projects = await orgoClient.listProjects()
       
-      // Store the API key in setup state (only if it's a new key)
+      // Store the API key in setup state (only if it's a new key) - encrypted
       if (!useStored) {
         await prisma.setupState.upsert({
           where: { userId: session.user.id },
           create: {
             userId: session.user.id,
-            orgoApiKey: keyToUse,
+            orgoApiKey: encrypt(keyToUse),
             status: 'pending',
           },
           update: {
-            orgoApiKey: keyToUse,
+            orgoApiKey: encrypt(keyToUse),
           },
         })
       }

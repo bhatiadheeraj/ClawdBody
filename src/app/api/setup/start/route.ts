@@ -8,6 +8,7 @@ import { E2BClient, generateSandboxName } from '@/lib/e2b'
 import { VMSetup } from '@/lib/vm-setup'
 import { AWSVMSetup } from '@/lib/aws-vm-setup'
 import { E2BVMSetup } from '@/lib/e2b-vm-setup'
+import { encrypt, decrypt } from '@/lib/encryption'
 // Import type from Prisma client for type checking
 import type { SetupState } from '@prisma/client'
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
       setupState = await prisma.setupState.create({
         data: {
           userId: session.user.id,
-          claudeApiKey,
+          claudeApiKey: encrypt(claudeApiKey),
           status: 'provisioning',
         },
       })
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
       setupState = await prisma.setupState.update({
         where: { id: setupState.id },
         data: {
-          claudeApiKey,
+          claudeApiKey: encrypt(claudeApiKey),
           status: 'provisioning',
           errorMessage: null,
           vmCreated: false,
@@ -116,6 +117,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Start async setup process based on provider
+    // Note: claudeApiKey is passed as-is (plaintext from request), but provider keys are decrypted from DB
     if (vmProvider === 'aws') {
       // Type assertion to access AWS fields
       const awsState = setupState as SetupState & { 
@@ -124,11 +126,14 @@ export async function POST(request: NextRequest) {
         awsRegion?: string
         awsInstanceType?: string 
       }
+      // Decrypt stored AWS credentials
+      const decryptedAccessKeyId = decrypt(awsState.awsAccessKeyId!)
+      const decryptedSecretAccessKey = decrypt(awsState.awsSecretAccessKey!)
       runAWSSetupProcess(
         session.user.id,
         claudeApiKey,
-        awsState.awsAccessKeyId!,
-        awsState.awsSecretAccessKey!,
+        decryptedAccessKeyId,
+        decryptedSecretAccessKey,
         awsState.awsRegion || 'us-east-1',
         vm?.awsInstanceType || awsState.awsInstanceType || 't3.micro',
         telegramBotToken,
@@ -138,10 +143,12 @@ export async function POST(request: NextRequest) {
     } else if (vmProvider === 'e2b') {
       // Type assertion to access E2B fields
       const e2bState = setupState as SetupState & { e2bApiKey?: string }
+      // Decrypt stored E2B API key
+      const decryptedE2bApiKey = decrypt(e2bState.e2bApiKey!)
       runE2BSetupProcess(
         session.user.id,
         claudeApiKey,
-        e2bState.e2bApiKey!,
+        decryptedE2bApiKey,
         vm?.e2bTemplateId || 'base',
         vm?.e2bTimeout || 3600,
         telegramBotToken,
@@ -151,10 +158,12 @@ export async function POST(request: NextRequest) {
     } else {
       // Type assertion to access Orgo-specific fields (TypeScript may have stale types cached)
       const orgoVM = vm as (typeof vm & { orgoRam?: number; orgoCpu?: number }) | null
+      // Decrypt stored Orgo API key
+      const decryptedOrgoApiKey = decrypt(setupState.orgoApiKey!)
       runSetupProcess(
         session.user.id,
         claudeApiKey,
-        setupState.orgoApiKey!,
+        decryptedOrgoApiKey,
         vm?.orgoProjectName || setupState.orgoProjectName || 'claude-brain',
         telegramBotToken,
         telegramUserId,
@@ -534,7 +543,7 @@ async function runAWSSetupProcess(
       awsInstanceId: instance.id,
       awsInstanceName: instance.name,
       awsPublicIp: instance.publicIp,
-      awsPrivateKey: privateKey,
+      awsPrivateKey: encrypt(privateKey),
       vmStatus: 'starting',
     })
 

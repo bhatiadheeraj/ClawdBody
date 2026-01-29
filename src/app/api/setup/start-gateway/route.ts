@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OrgoClient } from '@/lib/orgo'
 import { VMSetup } from '@/lib/vm-setup'
+import { decrypt } from '@/lib/encryption'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,10 +31,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Orgo API key not configured' }, { status: 500 })
     }
 
-    const claudeApiKey = setupState.claudeApiKey
-    if (!claudeApiKey) {
+    const claudeApiKeyEncrypted = setupState.claudeApiKey
+    if (!claudeApiKeyEncrypted) {
       return NextResponse.json({ error: 'Claude API key not found' }, { status: 400 })
     }
+    // Decrypt the stored API key
+    const claudeApiKey = decrypt(claudeApiKeyEncrypted)
 
     // Get Telegram token from config file on VM
     const orgoClient = new OrgoClient(orgoApiKey)

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OrgoClient } from '@/lib/orgo'
 import { AWSClient } from '@/lib/aws'
+import { decrypt } from '@/lib/encryption'
 import type { SetupState } from '@prisma/client'
 
 // Extended type for AWS fields (may be missing from cached Prisma types)
@@ -75,17 +76,18 @@ export async function POST(request: NextRequest) {
       }
 
       const awsState = setupState as AWSSetupState
-      const awsAccessKeyId = awsState?.awsAccessKeyId
-      const awsSecretAccessKey = awsState?.awsSecretAccessKey
+      const awsAccessKeyIdEncrypted = awsState?.awsAccessKeyId
+      const awsSecretAccessKeyEncrypted = awsState?.awsSecretAccessKey
       const finalAwsRegion = awsRegion || awsState?.awsRegion || 'us-east-1'
 
-      if (!awsAccessKeyId || !awsSecretAccessKey) {
+      if (!awsAccessKeyIdEncrypted || !awsSecretAccessKeyEncrypted) {
         return NextResponse.json({ error: 'AWS credentials not configured' }, { status: 500 })
       }
 
+      // Decrypt stored AWS credentials
       const awsClient = new AWSClient({
-        accessKeyId: awsAccessKeyId,
-        secretAccessKey: awsSecretAccessKey,
+        accessKeyId: decrypt(awsAccessKeyIdEncrypted),
+        secretAccessKey: decrypt(awsSecretAccessKeyEncrypted),
         region: finalAwsRegion,
       })
 
@@ -147,11 +149,14 @@ export async function POST(request: NextRequest) {
       }
 
       // Use user's Orgo API key or fallback to environment
-      const orgoApiKey = setupState?.orgoApiKey || process.env.ORGO_API_KEY
-      if (!orgoApiKey) {
+      const orgoApiKeyEncrypted = setupState?.orgoApiKey
+      const orgoApiKeyEnv = process.env.ORGO_API_KEY
+      if (!orgoApiKeyEncrypted && !orgoApiKeyEnv) {
         return NextResponse.json({ error: 'Orgo API key not configured' }, { status: 500 })
       }
 
+      // Decrypt stored key or use env variable (which is not encrypted)
+      const orgoApiKey = orgoApiKeyEncrypted ? decrypt(orgoApiKeyEncrypted) : orgoApiKeyEnv!
       const orgoClient = new OrgoClient(orgoApiKey)
 
       try {

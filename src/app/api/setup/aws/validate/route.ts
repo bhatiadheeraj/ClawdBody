@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { AWSClient, AWS_REGIONS, AWS_INSTANCE_TYPES } from '@/lib/aws'
+import { encrypt, decrypt } from '@/lib/encryption'
 
 export async function POST(request: NextRequest) {
   try {
@@ -33,8 +34,9 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No stored AWS credentials found' }, { status: 400 })
       }
       
-      keyId = setupState.awsAccessKeyId
-      secretKey = setupState.awsSecretAccessKey
+      // Decrypt stored credentials
+      keyId = decrypt(setupState.awsAccessKeyId)
+      secretKey = decrypt(setupState.awsSecretAccessKey)
       regionToUse = setupState.awsRegion || 'us-east-1'
     }
 
@@ -61,19 +63,19 @@ export async function POST(request: NextRequest) {
     // List existing Clawdbot instances
     const instances = await awsClient.listInstances()
 
-    // Store credentials in setup state (only if new credentials were provided)
+    // Store credentials in setup state (only if new credentials were provided) - encrypted
     if (!useStored) {
       await prisma.setupState.upsert({
         where: { userId: session.user.id },
         update: {
-          awsAccessKeyId: keyId,
-          awsSecretAccessKey: secretKey,
+          awsAccessKeyId: encrypt(keyId),
+          awsSecretAccessKey: encrypt(secretKey),
           awsRegion: regionToUse,
         },
         create: {
           userId: session.user.id,
-          awsAccessKeyId: keyId,
-          awsSecretAccessKey: secretKey,
+          awsAccessKeyId: encrypt(keyId),
+          awsSecretAccessKey: encrypt(secretKey),
           awsRegion: regionToUse,
           status: 'pending',
         },

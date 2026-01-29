@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { E2BClient, E2B_TEMPLATES, E2B_TIMEOUT_OPTIONS } from '@/lib/e2b'
+import { encrypt, decrypt } from '@/lib/encryption'
 
 export async function POST(request: NextRequest) {
   try {
@@ -27,7 +28,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No stored E2B API key found' }, { status: 400 })
       }
       
-      e2bApiKey = setupState.e2bApiKey
+      // Decrypt stored key
+      e2bApiKey = decrypt(setupState.e2bApiKey)
     }
 
     if (!e2bApiKey) {
@@ -44,16 +46,16 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Store API key in setup state (only if new key was provided)
+    // Store API key in setup state (only if new key was provided) - encrypted
     if (!useStored) {
       await prisma.setupState.upsert({
         where: { userId: session.user.id },
         update: {
-          e2bApiKey: e2bApiKey,
+          e2bApiKey: encrypt(e2bApiKey),
         },
         create: {
           userId: session.user.id,
-          e2bApiKey: e2bApiKey,
+          e2bApiKey: encrypt(e2bApiKey),
           status: 'pending',
         },
       })

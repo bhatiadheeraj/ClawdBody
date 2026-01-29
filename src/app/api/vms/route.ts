@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OrgoClient, generateComputerName } from '@/lib/orgo'
+import { decrypt } from '@/lib/encryption'
 
 /**
  * GET /api/vms - List all VMs for the current user
@@ -111,7 +112,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Orgo API key not configured' }, { status: 400 })
       }
 
-      const orgoClient = new OrgoClient(setupState.orgoApiKey)
+      // Decrypt the stored API key
+      const orgoClient = new OrgoClient(decrypt(setupState.orgoApiKey))
       const computerName = generateComputerName()
 
       try {

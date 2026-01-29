@@ -13,6 +13,7 @@ import { getSessionManager, SSHTerminalProvider } from '@/lib/terminal'
 import type { SSHConfig } from '@/lib/terminal'
 import type { SetupState } from '@prisma/client'
 import { sessionOutputBuffers } from '@/lib/terminal/session-buffers'
+import { decrypt } from '@/lib/encryption'
 
 // Extended type for AWS fields
 type AWSSetupState = SetupState & {
@@ -52,7 +53,8 @@ export async function POST(request: NextRequest) {
 
       vmProvider = vm.provider
       awsPublicIp = vm.awsPublicIp
-      awsPrivateKey = vm.awsPrivateKey
+      // Decrypt the private key from database
+      awsPrivateKey = vm.awsPrivateKey ? decrypt(vm.awsPrivateKey) : null
     } else {
       // Fall back to SetupState for backward compatibility
     const setupState = await prisma.setupState.findUnique({
@@ -66,7 +68,8 @@ export async function POST(request: NextRequest) {
       vmProvider = setupState.vmProvider || 'orgo'
       const awsState = setupState as AWSSetupState
       awsPublicIp = awsState.awsPublicIp || null
-      awsPrivateKey = awsState.awsPrivateKey || null
+      // Decrypt the private key from database
+      awsPrivateKey = awsState.awsPrivateKey ? decrypt(awsState.awsPrivateKey) : null
     }
 
     // Clean up any existing sessions for this user

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { decrypt } from '@/lib/encryption'
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,10 +51,14 @@ export async function GET(request: NextRequest) {
       select: { orgoApiKey: true },
     })
     
-    const orgoApiKey = setupState?.orgoApiKey || process.env.ORGO_API_KEY
-    if (!orgoApiKey) {
+    const orgoApiKeyEncrypted = setupState?.orgoApiKey
+    const orgoApiKeyEnv = process.env.ORGO_API_KEY
+    if (!orgoApiKeyEncrypted && !orgoApiKeyEnv) {
       return NextResponse.json({ error: 'Orgo API key not configured' }, { status: 500 })
     }
+    
+    // Decrypt stored key or use env variable (which is not encrypted)
+    const orgoApiKey = orgoApiKeyEncrypted ? decrypt(orgoApiKeyEncrypted) : orgoApiKeyEnv!
 
     // Fetch screenshot directly from Orgo API (bypass OrgoClient to handle binary response)
     const ORGO_API_BASE = 'https://www.orgo.ai/api'
