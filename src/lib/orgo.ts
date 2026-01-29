@@ -30,6 +30,13 @@ export class OrgoClient {
     this.apiKey = apiKey
   }
 
+  /**
+   * Ensure computer ID has the 'orgo-' prefix that Orgo API expects
+   */
+  private normalizeComputerId(computerId: string): string {
+    return computerId.startsWith('orgo-') ? computerId : `orgo-${computerId}`
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
@@ -144,7 +151,7 @@ export class OrgoClient {
    * Get computer details by ID
    */
   async getComputer(computerId: string): Promise<OrgoComputer> {
-    return this.request<OrgoComputer>(`/computers/${computerId}`)
+    return this.request<OrgoComputer>(`/computers/${this.normalizeComputerId(computerId)}`)
   }
 
   /**
@@ -161,35 +168,35 @@ export class OrgoClient {
    * Start a computer
    */
   async startComputer(computerId: string): Promise<void> {
-    await this.request(`/computers/${computerId}/start`, { method: 'POST' })
+    await this.request(`/computers/${this.normalizeComputerId(computerId)}/start`, { method: 'POST' })
   }
 
   /**
    * Stop a computer
    */
   async stopComputer(computerId: string): Promise<void> {
-    await this.request(`/computers/${computerId}/stop`, { method: 'POST' })
+    await this.request(`/computers/${this.normalizeComputerId(computerId)}/stop`, { method: 'POST' })
   }
 
   /**
    * Restart a computer
    */
   async restartComputer(computerId: string): Promise<void> {
-    await this.request(`/computers/${computerId}/restart`, { method: 'POST' })
+    await this.request(`/computers/${this.normalizeComputerId(computerId)}/restart`, { method: 'POST' })
   }
 
   /**
    * Delete a computer
    */
   async deleteComputer(computerId: string): Promise<void> {
-    await this.request(`/computers/${computerId}`, { method: 'DELETE' })
+    await this.request(`/computers/${this.normalizeComputerId(computerId)}`, { method: 'DELETE' })
   }
 
   /**
    * Execute a bash command on the computer
    */
   async bash(computerId: string, command: string): Promise<{ output: string; exit_code: number }> {
-    return this.request(`/computers/${computerId}/bash`, {
+    return this.request(`/computers/${this.normalizeComputerId(computerId)}/bash`, {
       method: 'POST',
       body: JSON.stringify({ command }),
     })
@@ -199,7 +206,7 @@ export class OrgoClient {
    * Execute Python code on the computer
    */
   async exec(computerId: string, code: string): Promise<{ output: string }> {
-    return this.request(`/computers/${computerId}/exec`, {
+    return this.request(`/computers/${this.normalizeComputerId(computerId)}/exec`, {
       method: 'POST',
       body: JSON.stringify({ code }),
     })
@@ -209,7 +216,7 @@ export class OrgoClient {
    * Take a screenshot of the computer
    */
   async screenshot(computerId: string): Promise<{ image: string }> {
-    return this.request(`/computers/${computerId}/screenshot`)
+    return this.request(`/computers/${this.normalizeComputerId(computerId)}/screenshot`)
   }
 
   /**

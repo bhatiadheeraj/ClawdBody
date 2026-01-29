@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { OrgoClient } from '@/lib/orgo'
 import { AWSClient } from '@/lib/aws'
 import { E2BClient } from '@/lib/e2b'
+import { decrypt } from '@/lib/encryption'
 import type { SetupState } from '@prisma/client'
 
 /**
@@ -117,14 +118,18 @@ export async function DELETE(
     // Delete the cloud resource based on provider
     if (existingVM.provider === 'orgo' && existingVM.orgoComputerId) {
       try {
-        const orgoApiKey = setupState?.orgoApiKey || process.env.ORGO_API_KEY
+        // Get Orgo API key from setup state (encrypted) or environment variable
+        const orgoApiKeyEncrypted = setupState?.orgoApiKey
+        const orgoApiKeyEnv = process.env.ORGO_API_KEY
+        
+        // Decrypt stored key or use env variable (which is not encrypted)
+        const orgoApiKey = orgoApiKeyEncrypted ? decrypt(orgoApiKeyEncrypted) : orgoApiKeyEnv
+        
         if (orgoApiKey) {
           const orgoClient = new OrgoClient(orgoApiKey)
           await orgoClient.deleteComputer(existingVM.orgoComputerId)
-        } else {
         }
       } catch (error: any) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
         // Continue with deletion even if cloud resource deletion fails
       }
     } else if (existingVM.provider === 'aws' && existingVM.awsInstanceId) {
@@ -134,14 +139,15 @@ export async function DELETE(
           awsSecretAccessKey?: string
           awsRegion?: string
         }
-        const awsAccessKeyId = awsState?.awsAccessKeyId
-        const awsSecretAccessKey = awsState?.awsSecretAccessKey
+        // Decrypt the encrypted AWS credentials
+        const awsAccessKeyIdEncrypted = awsState?.awsAccessKeyId
+        const awsSecretAccessKeyEncrypted = awsState?.awsSecretAccessKey
         const awsRegion = existingVM.awsRegion || awsState?.awsRegion || 'us-east-1'
 
-        if (awsAccessKeyId && awsSecretAccessKey) {
+        if (awsAccessKeyIdEncrypted && awsSecretAccessKeyEncrypted) {
           const awsClient = new AWSClient({
-            accessKeyId: awsAccessKeyId,
-            secretAccessKey: awsSecretAccessKey,
+            accessKeyId: decrypt(awsAccessKeyIdEncrypted),
+            secretAccessKey: decrypt(awsSecretAccessKeyEncrypted),
             region: awsRegion,
           })
           await awsClient.terminateInstance(existingVM.awsInstanceId)
@@ -154,7 +160,11 @@ export async function DELETE(
     } else if (existingVM.provider === 'e2b' && existingVM.e2bSandboxId) {
       try {
         const e2bState = setupState as SetupState & { e2bApiKey?: string }
-        const e2bApiKey = e2bState?.e2bApiKey || process.env.E2B_API_KEY
+        // Decrypt the encrypted E2B API key or use env variable
+        const e2bApiKeyEncrypted = e2bState?.e2bApiKey
+        const e2bApiKeyEnv = process.env.E2B_API_KEY
+        const e2bApiKey = e2bApiKeyEncrypted ? decrypt(e2bApiKeyEncrypted) : e2bApiKeyEnv
+        
         if (e2bApiKey) {
           const e2bClient = new E2BClient(e2bApiKey)
           // E2B sandboxes are ephemeral and auto-terminate, but we can try to kill it
