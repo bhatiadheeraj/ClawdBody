@@ -201,7 +201,6 @@ export function WebTerminal({
         if (retryCountRef.current < MAX_RETRIES) {
           retryCountRef.current++
           setRetryCount(retryCountRef.current)
-...`)
           
           // Wait a bit before retrying
           retryTimeoutRef.current = setTimeout(() => {
@@ -220,7 +219,6 @@ export function WebTerminal({
       if (retryCountRef.current < MAX_RETRIES) {
         retryCountRef.current++
         setRetryCount(retryCountRef.current)
-...`)
         
         retryTimeoutRef.current = setTimeout(() => {
           connect(true)

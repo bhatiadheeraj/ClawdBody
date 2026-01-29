@@ -63,13 +63,18 @@ export const authOptions: NextAuthOptions = {
 
         // Encrypt user email if not already encrypted
         if (user.email && !isUserDataEncrypted(user.email)) {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: { email: encryptUserData(user.email) },
-          })
+          try {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { email: encryptUserData(user.email) },
+            })
+          } catch (updateError) {
+            // Email update failed, but don't block sign-in
+          }
         }
       } catch (error) {
         // Don't block authentication if setup state creation fails
+        // Log error for debugging but allow sign-in to proceed
       }
 
       return true

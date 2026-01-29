@@ -125,11 +125,7 @@ export async function DELETE(
         }
       } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error)
-        if (errorMessage.includes('404') || errorMessage.includes('not found') || errorMessage.includes('Computer not found')) {
-, continuing`)
-        } else {
-:`, errorMessage)
-        }
+        // Continue with deletion even if cloud resource deletion fails
       }
     } else if (existingVM.provider === 'aws' && existingVM.awsInstanceId) {
       try {
@@ -153,10 +149,7 @@ export async function DELETE(
         }
       } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error)
-        if (errorMessage.includes('not found') || errorMessage.includes('InvalidInstanceID')) {
-        } else {
-:`, errorMessage)
-        }
+        // Continue with deletion even if cloud resource deletion fails
       }
     } else if (existingVM.provider === 'e2b' && existingVM.e2bSandboxId) {
       try {
@@ -170,7 +163,7 @@ export async function DELETE(
         } else {
         }
       } catch (error: any) {
-:`, error)
+        // Continue with deletion even if cloud resource deletion fails
       }
     }
 
