@@ -21,9 +21,9 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      // Redirect to learning-sources after sign-in
+      // Redirect to select-vm after sign-in
       if (url.startsWith(baseUrl)) {
-        return `${baseUrl}/learning-sources`
+        return `${baseUrl}/select-vm`
       }
       // Allow relative callback URLs
       if (url.startsWith('/')) {
