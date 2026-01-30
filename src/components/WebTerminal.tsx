@@ -162,7 +162,8 @@ export function WebTerminal({
         throw new Error(data.error || 'Failed to connect')
       }
 
-      const { sessionId } = await response.json()
+      const data = await response.json()
+      const { sessionId, reused } = data
       sessionIdRef.current = sessionId
       hasConnectedRef.current = true
       retryCountRef.current = 0 // Reset on successful connection

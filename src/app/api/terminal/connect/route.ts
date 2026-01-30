@@ -72,19 +72,31 @@ export async function POST(request: NextRequest) {
       awsPrivateKey = awsState.awsPrivateKey ? decrypt(awsState.awsPrivateKey) : null
     }
 
-    // Clean up any existing sessions for this user
     const sessionManager = getSessionManager()
-    sessionManager.cleanupUserSessions(session.user.id)
     
-    // Also clean up output buffers for old sessions
-    Array.from(sessionOutputBuffers.keys()).forEach(key => {
-      if (key.startsWith(`${session.user.id}-`)) {
-        sessionOutputBuffers.delete(key)
-      }
-    })
-
-    // Generate session ID
-    const sessionId = `${session.user.id}-${Date.now()}`
+    // Use a stable session ID based on user and VM (not timestamp)
+    // This allows session reuse when reconnecting
+    const sessionId = vmId 
+      ? `${session.user.id}-vm-${vmId}` 
+      : `${session.user.id}-default`
+    
+    // Check if we already have an active session for this user/VM
+    const existingSession = sessionManager.getSession(sessionId)
+    if (existingSession && existingSession.isConnected()) {
+      // Session already exists and is connected - return it
+      return NextResponse.json({
+        success: true,
+        sessionId,
+        message: 'Reusing existing terminal session',
+        reused: true,
+      })
+    }
+    
+    // Close only this specific session if it exists but isn't connected
+    if (existingSession) {
+      await sessionManager.closeSession(sessionId)
+      sessionOutputBuffers.delete(sessionId)
+    }
 
     let sshConfig: SSHConfig
 
