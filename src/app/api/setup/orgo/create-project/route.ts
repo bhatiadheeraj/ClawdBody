@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { OrgoClient, generateComputerName } from '@/lib/orgo'
+import { OrgoClient } from '@/lib/orgo'
 import { decrypt } from '@/lib/encryption'
 
 /**
