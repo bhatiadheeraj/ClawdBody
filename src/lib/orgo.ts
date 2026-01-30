@@ -243,15 +243,20 @@ export class OrgoClient {
 }
 
 /**
- * Generate a random computer name
+ * Sanitize a name to be cloud-provider safe
+ * - Converts to lowercase
+ * - Replaces spaces and underscores with hyphens
+ * - Removes any non-alphanumeric characters (except hyphens)
+ * - Removes consecutive hyphens
+ * - Trims hyphens from start/end
  */
-export function generateComputerName(): string {
-  const adjectives = ['swift', 'bright', 'calm', 'bold', 'keen', 'wise', 'warm', 'cool']
-  const nouns = ['fox', 'owl', 'wolf', 'hawk', 'bear', 'lion', 'deer', 'crow']
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)]
-  const noun = nouns[Math.floor(Math.random() * nouns.length)]
-  const num = Math.floor(Math.random() * 1000)
-  return `${adj}-${noun}-${num}`
+export function sanitizeName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[\s_]+/g, '-')      // Replace spaces and underscores with hyphens
+    .replace(/[^a-z0-9-]/g, '')   // Remove non-alphanumeric (except hyphens)
+    .replace(/-+/g, '-')          // Remove consecutive hyphens
+    .replace(/^-|-$/g, '')        // Trim hyphens from start/end
+    .substring(0, 63)             // Limit length for cloud provider compatibility
 }
-
 

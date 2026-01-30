@@ -77,7 +77,7 @@ model SetupState {
   awsAccessKeyId     String?
   awsSecretAccessKey String?
   awsRegion          String? @default("us-east-1")
-  awsInstanceType    String? @default("t3.micro")
+  awsInstanceType    String? @default("m7i-flex.large")
 
   // E2B Credentials
   e2bApiKey          String?

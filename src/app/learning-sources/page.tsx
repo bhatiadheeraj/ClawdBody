@@ -647,10 +647,14 @@ function LearningSourcesContent() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="mb-6 p-6 rounded-2xl border border-blue-400/50 bg-blue-400/5 backdrop-blur"
+                  className="mb-6 p-6 rounded-2xl border border-orange-400/50 bg-orange-400/5 backdrop-blur"
                 >
-                  <p className="text-sm text-blue-300 font-body leading-relaxed">
-                    Feel free to grab a coffee while we set up your workspace ☕ This usually takes around 25-30 minutes.
+                  <p className="text-sm text-orange-300 font-body leading-relaxed">
+                    There are currently some issues installing ClawdBot on Orgo VMs. For now, please use a{' '}
+                    <Link href="/select-vm" className="text-orange-200 hover:text-orange-100 underline font-medium">
+                      different service provider
+                    </Link>
+                    .
                   </p>
                 </motion.div>
               )}

@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { OrgoClient, generateComputerName } from '@/lib/orgo'
-import { AWSClient, generateInstanceName } from '@/lib/aws'
-import { E2BClient, generateSandboxName } from '@/lib/e2b'
+import { OrgoClient, sanitizeName } from '@/lib/orgo'
+import { AWSClient } from '@/lib/aws'
+import { E2BClient } from '@/lib/e2b'
 import { VMSetup } from '@/lib/vm-setup'
 import { AWSVMSetup } from '@/lib/aws-vm-setup'
 import { E2BVMSetup } from '@/lib/e2b-vm-setup'
@@ -315,7 +315,8 @@ async function runSetupProcess(
 
       await updateStatus({ orgoProjectId: project.id || '' })
 
-      const computerName = generateComputerName()
+      // Use the VM's name (sanitized) for the Orgo computer name
+      const computerName = existingVM?.name ? sanitizeName(existingVM.name) : sanitizeName(projectName)
       // Create computer using project ID (POST /computers with project_id in body)
       // Retry logic for computer creation (may timeout but still succeed)
       let retries = 3
@@ -521,6 +522,14 @@ async function runAWSSetupProcess(
       where: { userId },
     })
 
+    // Get the VM record if vmId is provided (to use its name)
+    let existingVM = null
+    if (vmId) {
+      existingVM = await prisma.vM.findUnique({
+        where: { id: vmId },
+      })
+    }
+
     const user = await prisma.user.findUnique({ where: { id: userId } })
     const awsClient = new AWSClient({
       accessKeyId: awsAccessKeyId,
@@ -531,7 +540,8 @@ async function runAWSSetupProcess(
     // 1. Create AWS EC2 Instance
     await updateStatus({ status: 'provisioning', vmStatus: 'creating' })
 
-    const instanceName = generateInstanceName()
+    // Use the VM's name (sanitized) for the AWS instance name
+    const instanceName = existingVM?.name ? sanitizeName(existingVM.name) : `clawdbot-${Date.now()}`
     const { instance, privateKey } = await awsClient.createInstance({
       name: instanceName,
       instanceType: awsInstanceType,
@@ -696,13 +706,22 @@ async function runE2BSetupProcess(
       where: { userId },
     })
 
+    // Get the VM record if vmId is provided (to use its name)
+    let existingVM = null
+    if (vmId) {
+      existingVM = await prisma.vM.findUnique({
+        where: { id: vmId },
+      })
+    }
+
     const user = await prisma.user.findUnique({ where: { id: userId } })
     const e2bClient = new E2BClient(e2bApiKey)
 
     // 1. Create E2B Sandbox
     await updateStatus({ status: 'provisioning', vmStatus: 'creating' })
 
-    const sandboxName = generateSandboxName()
+    // Use the VM's name (sanitized) for the E2B sandbox name
+    const sandboxName = existingVM?.name ? sanitizeName(existingVM.name) : `e2b-${Date.now()}`
     const { sandbox: createdSandbox, sandboxId } = await e2bClient.createSandbox({
       templateId,
       timeout,

@@ -150,11 +150,25 @@ export async function DELETE(
             secretAccessKey: decrypt(awsSecretAccessKeyEncrypted),
             region: awsRegion,
           })
-          await awsClient.terminateInstance(existingVM.awsInstanceId)
+          
+          // Use the cleanup method that also deletes the key pair
+          const result = await awsClient.terminateInstanceWithCleanup(existingVM.awsInstanceId)
+          
+          if (!result.terminated) {
+            console.error(`[AWS] Failed to terminate instance ${existingVM.awsInstanceId}:`, result.errors)
+          } else {
+            console.log(`[AWS] Successfully terminated instance ${existingVM.awsInstanceId}, key pair deleted: ${result.keyPairDeleted}`)
+          }
+          
+          if (result.errors.length > 0) {
+            console.warn(`[AWS] Cleanup warnings for instance ${existingVM.awsInstanceId}:`, result.errors)
+          }
         } else {
+          console.warn(`[AWS] No AWS credentials found for user ${session.user.id}, cannot terminate instance ${existingVM.awsInstanceId}`)
         }
       } catch (error: any) {
         const errorMessage = error instanceof Error ? error.message : String(error)
+        console.error(`[AWS] Error during instance termination for ${existingVM.awsInstanceId}:`, errorMessage)
         // Continue with deletion even if cloud resource deletion fails
       }
     } else if (existingVM.provider === 'e2b' && existingVM.e2bSandboxId) {

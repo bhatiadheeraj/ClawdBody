@@ -65,7 +65,7 @@ export interface AWSInstance {
 
 export interface AWSInstanceConfig {
   name: string
-  instanceType?: string  // Default: t3.micro (2 vCPU, 1GB RAM) - Free Tier eligible
+  instanceType?: string  // Default: m7i-flex.large (2 vCPU, 8GB RAM) - Free Tier eligible
   volumeSize?: number    // Default: 30GB
   region?: string
 }
@@ -195,7 +195,7 @@ export class AWSClient {
    * Create a new EC2 instance
    */
   async createInstance(config: AWSInstanceConfig): Promise<{ instance: AWSInstance; privateKey: string }> {
-    const instanceType = config.instanceType || 't3.micro'
+    const instanceType = config.instanceType || 'm7i-flex.large'
     const volumeSize = config.volumeSize || 30
     const region = config.region || this.region
     
@@ -407,6 +407,56 @@ touch /tmp/clawdbot-ready
   }
 
   /**
+   * Terminate an instance and clean up associated resources (key pair)
+   */
+  async terminateInstanceWithCleanup(instanceId: string): Promise<{ terminated: boolean; keyPairDeleted: boolean; errors: string[] }> {
+    const errors: string[] = []
+    let terminated = false
+    let keyPairDeleted = false
+    let keyName: string | undefined
+
+    // First, get the instance details to retrieve the key name
+    try {
+      const instance = await this.getInstance(instanceId)
+      keyName = instance.keyName
+    } catch (error: any) {
+      errors.push(`Failed to get instance details: ${error.message}`)
+    }
+
+    // Terminate the instance
+    try {
+      await this.ec2.send(new TerminateInstancesCommand({ InstanceIds: [instanceId] }))
+      terminated = true
+    } catch (error: any) {
+      errors.push(`Failed to terminate instance: ${error.message}`)
+    }
+
+    // Delete the associated key pair if we found it
+    if (keyName) {
+      try {
+        await this.ec2.send(new DeleteKeyPairCommand({ KeyName: keyName }))
+        keyPairDeleted = true
+      } catch (error: any) {
+        // Key pair might already be deleted or not exist
+        if (error.name !== 'InvalidKeyPair.NotFound') {
+          errors.push(`Failed to delete key pair: ${error.message}`)
+        } else {
+          keyPairDeleted = true // Consider it deleted if it doesn't exist
+        }
+      }
+    }
+
+    return { terminated, keyPairDeleted, errors }
+  }
+
+  /**
+   * Delete a key pair by name
+   */
+  async deleteKeyPair(keyName: string): Promise<void> {
+    await this.ec2.send(new DeleteKeyPairCommand({ KeyName: keyName }))
+  }
+
+  /**
    * Execute a command on the instance via SSM
    * Note: Instance must have SSM agent installed and proper IAM role
    */
@@ -484,17 +534,6 @@ touch /tmp/clawdbot-ready
   }
 }
 
-/**
- * Generate a random instance name
- */
-export function generateInstanceName(): string {
-  const adjectives = ['swift', 'bright', 'calm', 'bold', 'keen', 'wise', 'warm', 'cool']
-  const nouns = ['falcon', 'eagle', 'wolf', 'hawk', 'bear', 'lion', 'deer', 'raven']
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)]
-  const noun = nouns[Math.floor(Math.random() * nouns.length)]
-  const num = Math.floor(Math.random() * 1000)
-  return `clawdbot-${adj}-${noun}-${num}`
-}
 
 /**
  * Available AWS regions for Clawdbot VMs

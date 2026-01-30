@@ -218,14 +218,3 @@ export const E2B_TIMEOUT_OPTIONS = [
   { id: 86400, name: '24 hours', description: 'Maximum duration' },
 ]
 
-/**
- * Generate a random sandbox name
- */
-export function generateSandboxName(): string {
-  const adjectives = ['swift', 'bright', 'calm', 'bold', 'keen', 'wise', 'warm', 'cool']
-  const nouns = ['sandbox', 'env', 'space', 'pod', 'box', 'zone', 'unit', 'cell']
-  const adj = adjectives[Math.floor(Math.random() * adjectives.length)]
-  const noun = nouns[Math.floor(Math.random() * nouns.length)]
-  const num = Math.floor(Math.random() * 1000)
-  return `e2b-${adj}-${noun}-${num}`
-}

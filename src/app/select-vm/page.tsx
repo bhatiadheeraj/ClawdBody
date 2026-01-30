@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Loader2, ArrowRight, CheckCircle2, LogOut, X, Key, FolderPlus, AlertCircle, ExternalLink, Globe, Server, Plus, Trash2, Play, Power, ArrowLeft, ExternalLinkIcon, Settings } from 'lucide-react'
 
-type VMProvider = 'orgo' | 'e2b' | 'flyio' | 'aws' | 'railway' | 'digitalocean' | 'hetzner' | 'modal'
+type VMProvider = 'orgo' | 'e2b' | 'moltworker' | 'flyio' | 'aws' | 'railway' | 'digitalocean' | 'hetzner' | 'modal'
 
 interface VMOption {
   id: VMProvider
@@ -129,6 +129,15 @@ const vmOptions: VMOption[] = [
     url: 'https://e2b.dev',
   },
   {
+    id: 'moltworker',
+    name: 'Cloudflare Moltworker',
+    description: 'Run AI agents on Cloudflare Workers with Sandbox SDK and Browser Rendering.',
+    icon: <img src="/logos/cloudflare.png" alt="Cloudflare" className="w-24 h-auto object-contain" />,
+    available: false,
+    comingSoon: true,
+    url: 'https://github.com/cloudflare/moltworker',
+  },
+  {
     id: 'flyio',
     name: 'Fly.io',
     description: 'Global edge computing platform with low latency worldwide.',
@@ -210,7 +219,7 @@ export default function SelectVMPage() {
   const [awsAccessKeyId, setAwsAccessKeyId] = useState('')
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState('')
   const [awsRegion, setAwsRegion] = useState('us-east-1')
-  const [awsInstanceType, setAwsInstanceType] = useState('t3.micro')
+  const [awsInstanceType, setAwsInstanceType] = useState('m7i-flex.large')
   const [isValidatingAWS, setIsValidatingAWS] = useState(false)
   const [awsKeyValidated, setAwsKeyValidated] = useState(false)
   const [awsRegions, setAwsRegions] = useState<AWSRegion[]>([])
@@ -626,6 +635,8 @@ export default function SelectVMPage() {
     setIsSubmitting(true)
     setError(null)
 
+    setAwsError(null)
+
     try {
       // Save AWS configuration if new credentials were entered
       if (awsAccessKeyId && awsSecretAccessKey) {
@@ -639,31 +650,31 @@ export default function SelectVMPage() {
         })
       }
 
-      // Create the VM
+      // Create and provision the VM immediately
       const res = await fetch('/api/vms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: awsVMName.trim(),
           provider: 'aws',
+          provisionNow: true, // Provision the EC2 instance immediately
           awsInstanceType,
           awsRegion,
         }),
       })
 
-      if (!res.ok) {
-        const data = await res.json()
-        throw new Error(data.error || 'Failed to create VM')
-      }
-
       const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to provision EC2 instance')
+      }
 
       closeAWSModal()
 
       // Redirect to learning-sources page for this VM
       router.push(`/learning-sources?vmId=${data.vm.id}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
+      setAwsError(e instanceof Error ? e.message : 'Failed to provision EC2 instance')
       setIsSubmitting(false)
     }
   }
@@ -1110,28 +1121,28 @@ export default function SelectVMPage() {
           </motion.div>
         </motion.div>
 
-        {/* Continue Button */}
-        <motion.div
+        {/* Terms Footer */}
+        <motion.footer
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="flex items-center justify-center gap-4"
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="mt-12 pt-6 border-t border-sam-border text-center"
         >
-          <button
-            onClick={handleContinue}
-            disabled={userVMs.length === 0}
-            className="px-8 py-3 rounded-xl bg-sam-accent text-sam-bg font-medium hover:bg-sam-accent/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            Continue to Learning Sources
-            <ArrowRight className="w-5 h-5" />
-          </button>
-        </motion.div>
-
-        {userVMs.length === 0 && (
-          <p className="text-center text-sm text-sam-text-dim mt-4">
-            Add at least one VM to continue
+          <p className="text-sm text-sam-text-dim">
+            By using ClawdBody, you agree to our{' '}
+            <a
+              href="/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sam-accent hover:text-sam-accent/80 underline underline-offset-2 transition-colors"
+            >
+              Terms and Conditions
+            </a>
           </p>
-        )}
+          <p className="text-xs text-sam-text-dim/60 mt-2">
+            © {new Date().getFullYear()} ClawdBody. All rights reserved.
+          </p>
+        </motion.footer>
       </div>
 
       {/* Orgo Configuration Modal */}
@@ -1813,7 +1824,7 @@ export default function SelectVMPage() {
                   {isSubmitting ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Adding VM...
+                      Provisioning EC2...
                     </>
                   ) : (
                     <>
