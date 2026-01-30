@@ -73,6 +73,7 @@ interface E2BTimeoutOption {
   name: string
   description: string
   recommended?: boolean
+  freeTier?: boolean
 }
 
 interface OrgoRAMOption {
@@ -738,33 +739,40 @@ export default function SelectVMPage() {
 
     setIsSubmitting(true)
     setError(null)
+    setE2bError(null)
 
     try {
-      // Create the VM
+      // Create and provision the E2B sandbox immediately
       const res = await fetch('/api/vms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: e2bVMName.trim(),
           provider: 'e2b',
+          provisionNow: true, // Provision the sandbox immediately
           e2bTemplateId: selectedE2bTemplate,
           e2bTimeout: selectedE2bTimeout,
         }),
       })
 
+      const data = await res.json()
+
       if (!res.ok) {
-        const data = await res.json()
+        // Check if this is a plan upgrade error
+        if (data.needsUpgrade) {
+          setE2bError(data.error)
+          setIsSubmitting(false)
+          return
+        }
         throw new Error(data.error || 'Failed to create sandbox')
       }
-
-      const data = await res.json()
 
       closeE2BModal()
 
       // Redirect to learning-sources page for this VM
       router.push(`/learning-sources?vmId=${data.vm.id}`)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong')
+      setE2bError(e instanceof Error ? e.message : 'Something went wrong')
       setIsSubmitting(false)
     }
   }
@@ -2001,12 +2009,12 @@ export default function SelectVMPage() {
                       </label>
                       <div className="grid grid-cols-2 gap-2">
                         {(e2bTimeoutOptions.length > 0 ? e2bTimeoutOptions : [
-                          { id: 300, name: '5 minutes', description: 'Short tasks' },
-                          { id: 1800, name: '30 minutes', description: 'Medium tasks' },
-                          { id: 3600, name: '1 hour', description: 'Long tasks', recommended: true },
-                          { id: 7200, name: '2 hours', description: 'Extended sessions' },
-                          { id: 21600, name: '6 hours', description: 'Very long sessions' },
-                          { id: 86400, name: '24 hours', description: 'Maximum duration' },
+                          { id: 300, name: '5 minutes', description: 'Short tasks', freeTier: true },
+                          { id: 1800, name: '30 minutes', description: 'Medium tasks', freeTier: true },
+                          { id: 3600, name: '1 hour', description: 'Long tasks', recommended: true, freeTier: true },
+                          { id: 7200, name: '2 hours', description: 'Extended sessions', freeTier: false },
+                          { id: 21600, name: '6 hours', description: 'Very long sessions', freeTier: false },
+                          { id: 86400, name: '24 hours', description: 'Maximum duration', freeTier: false },
                         ]).map((option) => (
                           <button
                             key={option.id}
@@ -2020,17 +2028,55 @@ export default function SelectVMPage() {
                               <span className="text-sam-text font-medium text-sm">{option.name}</span>
                               {option.recommended && (
                                 <span className="text-[10px] font-mono text-sam-accent bg-sam-accent/10 px-1.5 py-0.5 rounded">
-                                  Recommended
+                                  Best
                                 </span>
                               )}
                             </div>
                             <div className="text-xs text-sam-text-dim">
                               {option.description}
                             </div>
+                            <div className={`text-[10px] mt-1 font-medium ${option.freeTier ? 'text-green-400' : 'text-amber-400'}`}>
+                              {option.freeTier ? 'Free Tier' : 'Paid Plan'}
+                            </div>
                           </button>
                         ))}
                       </div>
                     </div>
+                    
+                    {/* Pro Plan Notice for paid durations */}
+                    {(() => {
+                      const selectedOption = (e2bTimeoutOptions.length > 0 ? e2bTimeoutOptions : [
+                        { id: 300, freeTier: true },
+                        { id: 1800, freeTier: true },
+                        { id: 3600, freeTier: true },
+                        { id: 7200, freeTier: false },
+                        { id: 21600, freeTier: false },
+                        { id: 86400, freeTier: false },
+                      ]).find(opt => opt.id === selectedE2bTimeout)
+                      return selectedOption && !selectedOption.freeTier ? (
+                        <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                          <div className="flex items-start gap-3">
+                            <AlertCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <p className="text-blue-400 font-medium">Pro Plan Feature</p>
+                              <p className="text-blue-400/80 text-sm mt-1">
+                                Durations longer than 1 hour require an E2B Pro plan.
+                                If you already have a Pro plan, you can proceed.
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href="https://e2b.dev/pricing"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-3 w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-blue-500/20 border border-blue-500/40 text-blue-400 font-medium text-sm hover:bg-blue-500/30 hover:border-blue-500/50 transition-all"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                            View E2B Plans
+                          </a>
+                        </div>
+                      ) : null
+                    })()}
 
                     {/* E2B Info Notice */}
                     <div className="p-3 rounded-lg bg-sam-bg border border-sam-border">

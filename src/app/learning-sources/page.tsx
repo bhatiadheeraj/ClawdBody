@@ -647,14 +647,10 @@ function LearningSourcesContent() {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5 }}
-                  className="mb-6 p-6 rounded-2xl border border-orange-400/50 bg-orange-400/5 backdrop-blur"
+                  className="mb-6 p-6 rounded-2xl border border-blue-400/50 bg-blue-400/5 backdrop-blur"
                 >
-                  <p className="text-sm text-orange-300 font-body leading-relaxed">
-                    There are currently some issues installing ClawdBot on Orgo VMs. For now, please use a{' '}
-                    <Link href="/select-vm" className="text-orange-200 hover:text-orange-100 underline font-medium">
-                      different service provider
-                    </Link>
-                    .
+                  <p className="text-sm text-blue-300 font-body leading-relaxed">
+                    Feel free to grab a coffee while we set up your workspace ☕ This usually takes around 25-30 minutes.
                   </p>
                 </motion.div>
               )}
@@ -915,8 +911,8 @@ function LearningSourcesContent() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className={`flex flex-col md:flex-row items-center justify-between gap-6 p-6 rounded-2xl border bg-sam-surface/30 ${!density.sufficient && density.percentage > 0
-                    ? 'border-orange-400/50'
-                    : 'border-sam-border'
+                  ? 'border-orange-400/50'
+                  : 'border-sam-border'
                   }`}
               >
                 <div className="flex items-center gap-4">
@@ -1176,8 +1172,8 @@ function ConnectorCard({ connector, index, onConnect }: { connector: Connector; 
                   onClick={handleResync}
                   disabled={isSyncing || isSynced}
                   className={`px-4 py-2 rounded-lg border font-display font-semibold text-sm transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${isSynced
-                      ? 'border-green-500 bg-green-500/10 text-green-500'
-                      : 'border-sam-accent text-sam-accent hover:bg-sam-accent/10'
+                    ? 'border-green-500 bg-green-500/10 text-green-500'
+                    : 'border-sam-accent text-sam-accent hover:bg-sam-accent/10'
                     }`}
                 >
                   {isSyncing ? (
@@ -1589,18 +1585,18 @@ function SetupProgressView({
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                     className={`p-4 rounded-lg border transition-all ${isActive
-                        ? 'border-sam-accent bg-sam-accent/10'
-                        : isComplete
-                          ? 'border-green-500/50 bg-green-500/5'
-                          : 'border-sam-border bg-sam-surface/30'
+                      ? 'border-sam-accent bg-sam-accent/10'
+                      : isComplete
+                        ? 'border-green-500/50 bg-green-500/5'
+                        : 'border-sam-border bg-sam-surface/30'
                       }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${isComplete
-                          ? 'bg-green-500/20 text-green-500'
-                          : isActive
-                            ? 'bg-sam-accent/20 text-sam-accent'
-                            : 'bg-sam-surface text-sam-text-dim'
+                        ? 'bg-green-500/20 text-green-500'
+                        : isActive
+                          ? 'bg-sam-accent/20 text-sam-accent'
+                          : 'bg-sam-surface text-sam-text-dim'
                         }`}>
                         {isComplete ? (
                           <Check className="w-5 h-5" />
@@ -1654,10 +1650,10 @@ function SetupProgressView({
                       <div
                         key={index}
                         className={`flex items-start gap-2 ${log.type === 'error'
-                            ? 'text-sam-error'
-                            : log.type === 'success'
-                              ? 'text-green-500'
-                              : 'text-sam-text-dim'
+                          ? 'text-sam-error'
+                          : log.type === 'success'
+                            ? 'text-green-500'
+                            : 'text-sam-text-dim'
                           }`}
                       >
                         <span className="text-sam-text-dim/50 flex-shrink-0">
@@ -1823,8 +1819,8 @@ function ComputerConnectedView({
                 <button
                   onClick={() => setActiveVMTab('screen')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${activeVMTab === 'screen'
-                      ? 'bg-sam-accent/15 text-sam-accent border-sam-accent/30'
-                      : 'text-sam-text-dim hover:text-sam-text hover:bg-sam-surface/50 border-transparent'
+                    ? 'bg-sam-accent/15 text-sam-accent border-sam-accent/30'
+                    : 'text-sam-text-dim hover:text-sam-text hover:bg-sam-surface/50 border-transparent'
                     }`}
                 >
                   <Monitor className="w-3.5 h-3.5" />
@@ -1833,8 +1829,8 @@ function ComputerConnectedView({
                 <button
                   onClick={() => setActiveVMTab('terminal')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${activeVMTab === 'terminal'
-                      ? 'bg-sam-accent/15 text-sam-accent border-sam-accent/30'
-                      : 'text-sam-text-dim hover:text-sam-text hover:bg-sam-surface/50 border-transparent'
+                    ? 'bg-sam-accent/15 text-sam-accent border-sam-accent/30'
+                    : 'text-sam-text-dim hover:text-sam-text hover:bg-sam-surface/50 border-transparent'
                     }`}
                 >
                   <Terminal className="w-3.5 h-3.5" />

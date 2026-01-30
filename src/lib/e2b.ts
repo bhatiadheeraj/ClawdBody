@@ -208,13 +208,16 @@ export const E2B_TEMPLATES = [
 
 /**
  * E2B timeout/duration options
+ * E2B Hobby (free) tier: max 1 hour
+ * E2B Pro ($150/mo): up to 24 hours
+ * See: https://e2b.dev/pricing
  */
 export const E2B_TIMEOUT_OPTIONS = [
-  { id: 300, name: '5 minutes', description: 'Short tasks' },
-  { id: 1800, name: '30 minutes', description: 'Medium tasks' },
-  { id: 3600, name: '1 hour', description: 'Long tasks', recommended: true },
-  { id: 7200, name: '2 hours', description: 'Extended sessions' },
-  { id: 21600, name: '6 hours', description: 'Very long sessions' },
-  { id: 86400, name: '24 hours', description: 'Maximum duration' },
+  { id: 300, name: '5 minutes', description: 'Short tasks', freeTier: true },
+  { id: 1800, name: '30 minutes', description: 'Medium tasks', freeTier: true },
+  { id: 3600, name: '1 hour', description: 'Long tasks', recommended: true, freeTier: true },
+  { id: 7200, name: '2 hours', description: 'Extended sessions', freeTier: false },
+  { id: 21600, name: '6 hours', description: 'Very long sessions', freeTier: false },
+  { id: 86400, name: '24 hours', description: 'Maximum duration', freeTier: false },
 ]
 

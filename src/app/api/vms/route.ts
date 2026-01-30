@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { OrgoClient, sanitizeName } from '@/lib/orgo'
 import { AWSClient } from '@/lib/aws'
+import { E2BClient } from '@/lib/e2b'
 import { decrypt, encrypt } from '@/lib/encryption'
 
 /**
@@ -216,6 +217,52 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // For E2B sandboxes with provisionNow, create the sandbox immediately
+    let e2bSandboxId: string | undefined
+    if (provider === 'e2b' && provisionNow) {
+      // Get the E2B API key from setup state
+      const setupState = await prisma.setupState.findUnique({
+        where: { userId: session.user.id },
+        select: { e2bApiKey: true },
+      })
+
+      if (!setupState?.e2bApiKey) {
+        return NextResponse.json({ error: 'E2B API key not configured' }, { status: 400 })
+      }
+
+      try {
+        // Decrypt the stored API key
+        const e2bClient = new E2BClient(decrypt(setupState.e2bApiKey))
+
+        // Create the E2B sandbox
+        console.log(`[E2B] Creating sandbox for user ${session.user.id}: ${sanitizedName}`)
+        const { sandboxId } = await e2bClient.createSandbox({
+          templateId: e2bTemplateId || 'base',
+          timeout: e2bTimeout || 3600, // Default 1 hour
+          metadata: { name: sanitizedName, userId: session.user.id },
+        })
+
+        e2bSandboxId = sandboxId
+        vmStatus = 'running'
+        
+        console.log(`[E2B] Successfully created sandbox ${e2bSandboxId}`)
+      } catch (e2bError: any) {
+        console.error(`[E2B] Failed to provision sandbox:`, e2bError)
+        const errorMessage = e2bError.message || 'Failed to provision E2B sandbox'
+        
+        // Check if it's a plan limitation error (timeout > 1 hour on free tier)
+        if (errorMessage.includes('Timeout') || errorMessage.includes('timeout') || 
+            errorMessage.includes('1 hour') || errorMessage.includes('greater than')) {
+          return NextResponse.json({
+            error: 'Durations longer than 1 hour require an E2B Pro plan. Please select 1 hour or less, or upgrade your E2B plan at https://e2b.dev/pricing',
+            needsUpgrade: true,
+          }, { status: 400 })
+        }
+        
+        return NextResponse.json({ error: errorMessage }, { status: 400 })
+      }
+    }
+
     // Create the VM record
     const vm = await prisma.vM.create({
       data: {
@@ -224,7 +271,8 @@ export async function POST(request: NextRequest) {
         provider,
         status: vmStatus,
         vmCreated: (provider === 'orgo' && provisionNow && !!orgoComputerId) || 
-                   (provider === 'aws' && provisionNow && !!awsInstanceId),
+                   (provider === 'aws' && provisionNow && !!awsInstanceId) ||
+                   (provider === 'e2b' && provisionNow && !!e2bSandboxId),
         // Orgo specific
         orgoProjectId,
         orgoProjectName,
@@ -241,6 +289,7 @@ export async function POST(request: NextRequest) {
         // E2B specific
         e2bTemplateId,
         e2bTimeout,
+        e2bSandboxId,
       },
     })
 
