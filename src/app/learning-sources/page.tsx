@@ -10,6 +10,7 @@ import { WebTerminal } from '@/components/WebTerminal'
 import { OrgoTerminal } from '@/components/OrgoTerminal'
 import { E2BTerminal } from '@/components/E2BTerminal'
 import { ClawdbotChat } from '@/components/ClawdbotChat'
+import { OrgoVNCDisplay } from '@/components/OrgoVNCDisplay'
 
 interface Connector {
   id: string
@@ -1353,58 +1354,7 @@ function SetupProgressView({
   onReset: () => void
   vmId?: string | null
 }) {
-  const [currentScreenshot, setCurrentScreenshot] = useState<string | null>(null)
   const [isProgressCollapsed, setIsProgressCollapsed] = useState(false)
-
-  // Poll for screenshots if VM is created
-  useEffect(() => {
-    if (!setupStatus?.orgoComputerId || !setupStatus?.vmCreated) {
-      return
-    }
-
-    const fetchScreenshot = async () => {
-      try {
-        const screenshotUrl = vmId ? `/api/setup/screenshot?vmId=${vmId}` : '/api/setup/screenshot'
-        const res = await fetch(screenshotUrl)
-        if (res.ok) {
-          const data = await res.json()
-          // Handle both base64 image and image URL
-          if (data.image && data.image.length > 0) {
-            setCurrentScreenshot(data.image)
-          } else if (data.imageUrl) {
-            // If we got a URL, use it directly
-            setCurrentScreenshot(data.imageUrl)
-          } else if (data.error) {
-            // Only log non-503 errors (503 means VM is starting, which is expected)
-            if (res.status !== 503) {
-            }
-          }
-        } else {
-          // 503 (Service Unavailable) means VM is starting - this is expected, don't log as error
-          if (res.status === 503) {
-            // VM is still starting, this is normal - don't log as error
-            return
-          }
-
-          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
-          // Only log non-503 errors
-          if (res.status !== 503) {
-          }
-        }
-      } catch (error) {
-        // Network errors are also expected during VM startup
-        // Don't clear the existing screenshot on transient errors
-      }
-    }
-
-    // Initial fetch
-    fetchScreenshot()
-
-    // Poll every 500ms for smooth video-like stream
-    const interval = setInterval(fetchScreenshot, 500)
-
-    return () => clearInterval(interval)
-  }, [setupStatus?.orgoComputerId, setupStatus?.vmCreated])
   // Determine if Telegram was configured (either completed or in progress)
   const hasTelegramSetup = setupStatus?.telegramConfigured || setupStatus?.gatewayStarted
 
@@ -1484,9 +1434,9 @@ function SetupProgressView({
             <h3 className="text-lg font-display font-bold text-sam-text">VM Screen</h3>
             <p className="text-xs text-sam-text-dim font-mono">Live view</p>
           </div>
-          {setupStatus?.orgoComputerUrl && (
+          {setupStatus?.orgoComputerId && (
             <a
-              href={setupStatus.orgoComputerUrl}
+              href={`https://www.orgo.ai/workspaces/${setupStatus.orgoComputerId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-sam-accent hover:underline flex items-center gap-1"
@@ -1498,21 +1448,10 @@ function SetupProgressView({
         </div>
         <div className="aspect-video bg-sam-bg flex items-center justify-center relative">
           {setupStatus?.vmCreated && setupStatus?.orgoComputerId ? (
-            currentScreenshot ? (
-              <img
-                src={currentScreenshot.startsWith('http') ? currentScreenshot : `data:image/png;base64,${currentScreenshot}`}
-                alt="VM Screen"
-                className="w-full h-full object-contain"
-                onError={(e) => {
-                  setCurrentScreenshot(null)
-                }}
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-3 text-sam-text-dim">
-                <Loader2 className="w-8 h-8 animate-spin text-sam-accent" />
-                <p className="text-sm font-mono">Loading VM screen...</p>
-              </div>
-            )
+            <OrgoVNCDisplay
+              vmId={vmId || undefined}
+              className="w-full h-full"
+            />
           ) : (
             <div className="flex flex-col items-center gap-3 text-sam-text-dim">
               <Server className="w-12 h-12" />
@@ -1693,7 +1632,6 @@ function ComputerConnectedView({
   vmId?: string | null
 }) {
   const [isDeleting, setIsDeleting] = useState(false)
-  const [currentScreenshot, setCurrentScreenshot] = useState<string | null>(null)
   // Default to terminal for AWS/E2B (no screen view), screen for Orgo
   const [activeVMTab, setActiveVMTab] = useState<'screen' | 'terminal' | 'chat'>(() => {
     // Will be updated by useEffect when setupStatus loads
@@ -1717,94 +1655,6 @@ function ComputerConnectedView({
       setActiveVMTab('chat')
     }
   }, [setupStatus?.vmProvider])
-
-  // Poll for screenshots continuously (Orgo only - AWS doesn't support screenshots)
-  useEffect(() => {
-    // Skip for AWS - no screenshot API available
-    if (setupStatus?.vmProvider === 'aws') {
-      return
-    }
-    if (!setupStatus?.orgoComputerId || !setupStatus?.vmCreated) {
-      return
-    }
-
-    let consecutive404s = 0
-    const max404s = 3 // Stop polling after 3 consecutive 404s
-    let intervalId: NodeJS.Timeout | null = null
-
-    const fetchScreenshot = async () => {
-      try {
-        const screenshotUrl = vmId ? `/api/setup/screenshot?vmId=${vmId}` : '/api/setup/screenshot'
-        const res = await fetch(screenshotUrl)
-        if (res.ok) {
-          const data = await res.json()
-          // Reset 404 counter on success
-          consecutive404s = 0
-          // Handle both base64 image and image URL
-          if (data.image && data.image.length > 0) {
-            setCurrentScreenshot(data.image)
-          } else if (data.imageUrl) {
-            // If we got a URL, use it directly
-            setCurrentScreenshot(data.imageUrl)
-          } else if (data.error) {
-            // Only log non-503 errors (503 means VM is starting, which is expected)
-            if (res.status !== 503) {
-            }
-          }
-        } else {
-          // 404 means computer was deleted - stop polling after a few attempts
-          if (res.status === 404) {
-            consecutive404s++
-            const errorData = await res.json().catch(() => ({ error: 'Computer not found' }))
-            if (errorData.deleted || consecutive404s >= max404s) {
-              // Clear screenshot and stop polling
-              setCurrentScreenshot(null)
-              if (intervalId) {
-                clearInterval(intervalId)
-                intervalId = null
-              }
-              // The status check will detect the reset state and update the UI
-              return
-            }
-            return
-          }
-
-          // 503 (Service Unavailable) means VM is starting - this is expected, don't log as error
-          if (res.status === 503) {
-            // VM is still starting, this is normal - don't log as error
-            return
-          }
-
-          // Reset 404 counter on other errors
-          consecutive404s = 0
-
-          const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
-          // Only log non-503, non-404 errors
-          if (res.status !== 503 && res.status !== 404) {
-          }
-        }
-      } catch (error) {
-        // Network errors are also expected during VM startup
-        // Don't clear the existing screenshot on transient errors
-      }
-    }
-
-    // Initial fetch
-    fetchScreenshot()
-
-    // Poll every 500ms for smooth video-like stream
-    intervalId = setInterval(() => {
-      fetchScreenshot().catch(() => {
-        // Handle errors in polling
-      })
-    }, 500)
-
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId)
-      }
-    }
-  }, [setupStatus?.orgoComputerId, setupStatus?.vmCreated])
 
   const handleDelete = async () => {
     const message = setupStatus.vmProvider === 'aws'
@@ -1884,9 +1734,9 @@ function ComputerConnectedView({
               <ExternalLink className="w-3 h-3" />
             </a>
           )}
-          {setupStatus?.vmProvider !== 'aws' && setupStatus?.orgoComputerUrl && (
+          {setupStatus?.vmProvider !== 'aws' && setupStatus?.orgoComputerId && (
             <a
-              href={setupStatus.orgoComputerUrl}
+              href={`https://www.orgo.ai/workspaces/${setupStatus.orgoComputerId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-sm text-sam-accent hover:underline"
@@ -1940,21 +1790,11 @@ function ComputerConnectedView({
           ) : setupStatus?.vmCreated && setupStatus?.orgoComputerId ? (
             // Orgo VM: Show content based on active tab
             activeVMTab === 'screen' ? (
-              currentScreenshot ? (
-                <img
-                  src={currentScreenshot.startsWith('http') ? currentScreenshot : `data:image/png;base64,${currentScreenshot}`}
-                  alt="VM Screen"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    setCurrentScreenshot(null) // Clear on error to show loading/error state
-                  }}
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-3 text-sam-text-dim">
-                  <Loader2 className="w-8 h-8 animate-spin text-sam-accent" />
-                  <p className="text-sm font-mono">Loading VM screen...</p>
-                </div>
-              )
+              // VNC display for Orgo VMs - allows direct interaction
+              <OrgoVNCDisplay
+                vmId={vmId || undefined}
+                className="w-full h-full"
+              />
             ) : activeVMTab === 'terminal' ? (
               // Terminal tab - Orgo bash terminal
               <OrgoTerminal
@@ -1964,22 +1804,11 @@ function ComputerConnectedView({
                 className="w-full h-full"
               />
             ) : (
-              // Fallback to screen for Orgo
-              currentScreenshot ? (
-                <img
-                  src={currentScreenshot.startsWith('http') ? currentScreenshot : `data:image/png;base64,${currentScreenshot}`}
-                  alt="VM Screen"
-                  className="w-full h-full object-contain"
-                  onError={(e) => {
-                    setCurrentScreenshot(null)
-                  }}
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-3 text-sam-text-dim">
-                  <Loader2 className="w-8 h-8 animate-spin text-sam-accent" />
-                  <p className="text-sm font-mono">Loading VM screen...</p>
-                </div>
-              )
+              // Fallback to VNC for Orgo
+              <OrgoVNCDisplay
+                vmId={vmId || undefined}
+                className="w-full h-full"
+              />
             )
           ) : (
             <div className="flex flex-col items-center gap-3 text-sam-text-dim">
@@ -2020,9 +1849,9 @@ function ComputerConnectedView({
               <ExternalLink className="w-3 h-3 text-sam-text-dim ml-auto" />
             </a>
           )}
-          {setupStatus.vmProvider === 'orgo' && setupStatus.orgoComputerUrl && (
+          {setupStatus.vmProvider === 'orgo' && setupStatus.orgoComputerId && (
             <a
-              href={setupStatus.orgoComputerUrl}
+              href={`https://www.orgo.ai/workspaces/${setupStatus.orgoComputerId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 rounded-lg border border-sam-border bg-sam-surface hover:border-sam-accent transition-all w-full text-xs"
