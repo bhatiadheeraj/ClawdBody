@@ -67,9 +67,9 @@ export function OrgoVNCDisplay({
     onDisconnect?.()
   }, [onDisconnect])
 
-  const handleVNCError = useCallback((err: Error) => {
-    setError(err.message)
-    onError?.(err)
+  const handleVNCError = useCallback((errorMessage: string) => {
+    setError(errorMessage)
+    onError?.(new Error(errorMessage))
   }, [onError])
 
   const handleRetry = useCallback(() => {
